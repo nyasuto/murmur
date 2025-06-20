@@ -361,13 +361,26 @@ async function saveToObsidian() {
   }
 
   try {
-    const fileName = `voice-memo-${new Date().toISOString().replace(/[:.]/g, '-')}.md`;
-    const success = await window.electronAPI.saveToObsidian(formattedContent, fileName);
+    // Extract title from formatted content if possible
+    const lines = formattedContent.split('\n');
+    const titleLine = lines.find(line => line.startsWith('# '));
+    const title = titleLine ? titleLine.replace('# ', '').trim() : null;
 
-    if (success) {
-      alert('Obsidianに保存しました。');
+    const result = await window.electronAPI.saveToObsidian(formattedContent, {
+      title,
+      subfolder: 'voice-memos' // Save in a dedicated subfolder
+    });
+
+    if (result.success) {
+      alert(`Obsidianに保存しました：${result.fileName}`);
+      
+      // Optionally clear content after successful save
+      const shouldClear = confirm('保存が完了しました。内容をクリアしますか？');
+      if (shouldClear) {
+        clearContent();
+      }
     } else {
-      alert('保存に失敗しました。Obsidian Vaultのパスを確認してください。');
+      alert(`保存に失敗しました：${result.error}`);
     }
   } catch (error) {
     console.error('Save failed:', error);
@@ -409,9 +422,14 @@ function hideSettings() {
 // Load settings
 async function loadSettings() {
   try {
-    const settings = await window.electronAPI.getSettings();
-    document.getElementById('obsidianPath').value = settings.obsidianPath || '';
-    document.getElementById('openaiKey').value = settings.openaiKey || '';
+    const result = await window.electronAPI.getSettings();
+    if (result.success) {
+      const settings = result.settings;
+      document.getElementById('obsidianPath').value = settings.obsidianVaultPath || '';
+      document.getElementById('openaiKey').value = settings.openaiApiKey || '';
+    } else {
+      console.error('Failed to load settings:', result.error);
+    }
   } catch (error) {
     console.error('Failed to load settings:', error);
   }
@@ -420,14 +438,36 @@ async function loadSettings() {
 // Save settings
 async function saveSettings() {
   try {
+    const obsidianPath = document.getElementById('obsidianPath').value;
+    const openaiKey = document.getElementById('openaiKey').value;
+
+    // Validate Obsidian vault if path is provided
+    if (obsidianPath) {
+      const validation = await window.electronAPI.validateObsidianVault(obsidianPath);
+      if (validation.success && !validation.validation.valid) {
+        alert(`Obsidian Vault検証エラー: ${validation.validation.error}`);
+        return;
+      }
+      
+      if (validation.success && validation.validation.warning) {
+        const proceed = confirm(`警告: ${validation.validation.warning}\n\n続行しますか？`);
+        if (!proceed) return;
+      }
+    }
+
     const settings = {
-      obsidianPath: document.getElementById('obsidianPath').value,
-      openaiKey: document.getElementById('openaiKey').value,
+      obsidianVaultPath: obsidianPath,
+      openaiApiKey: openaiKey,
     };
 
-    await window.electronAPI.saveSettings(settings);
-    alert('設定を保存しました。');
-    hideSettings();
+    const result = await window.electronAPI.saveSettings(settings);
+    
+    if (result.success) {
+      alert('設定を保存しました。');
+      hideSettings();
+    } else {
+      alert(`設定の保存に失敗しました: ${result.error}`);
+    }
   } catch (error) {
     console.error('Failed to save settings:', error);
     alert('設定の保存に失敗しました。');
@@ -438,8 +478,23 @@ async function saveSettings() {
 async function browseVault() {
   try {
     const result = await window.electronAPI.showSaveDialog();
-    if (!result.canceled && result.filePath) {
-      document.getElementById('obsidianPath').value = result.filePath;
+    if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
+      const selectedPath = result.filePaths[0];
+      document.getElementById('obsidianPath').value = selectedPath;
+      
+      // Automatically validate the selected path
+      const validation = await window.electronAPI.validateObsidianVault(selectedPath);
+      if (validation.success) {
+        if (validation.validation.valid) {
+          if (validation.validation.warning) {
+            alert(`選択されたフォルダ: ${selectedPath}\n警告: ${validation.validation.warning}`);
+          } else {
+            alert(`有効なObsidian Vaultが選択されました: ${selectedPath}`);
+          }
+        } else {
+          alert(`警告: ${validation.validation.error}`);
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to browse vault:', error);

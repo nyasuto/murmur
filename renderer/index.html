@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murmur - 音声ライフログ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ Murmur</h1>
+            <p>音声でライフログを記録しよう</p>
+        </header>
+
+        <main>
+            <div class="recording-section">
+                <div class="record-button-container">
+                    <button id="recordButton" class="record-button" disabled>
+                        <span class="record-icon">🎙️</span>
+                        <span class="record-text">録音開始</span>
+                    </button>
+                </div>
+                
+                <div class="recording-status">
+                    <div id="recordingIndicator" class="recording-indicator hidden">
+                        <span class="pulse"></span>
+                        録音中...
+                    </div>
+                    <div id="recordingTime" class="recording-time hidden">00:00</div>
+                </div>
+            </div>
+
+            <div class="audio-preview">
+                <audio id="audioPreview" controls style="display: none;"></audio>
+            </div>
+
+            <div class="processing-section">
+                <div id="processingStatus" class="processing-status hidden">
+                    <div class="spinner"></div>
+                    <span id="processingText">処理中...</span>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div id="transcriptionResult" class="result-box hidden">
+                    <h3>音声認識結果</h3>
+                    <div id="transcriptionText" class="result-text"></div>
+                </div>
+                
+                <div id="formattedResult" class="result-box hidden">
+                    <h3>整形済みテキスト</h3>
+                    <div id="formattedText" class="result-text"></div>
+                </div>
+            </div>
+
+            <div class="action-section">
+                <button id="saveButton" class="action-button" disabled>
+                    💾 Obsidianに保存
+                </button>
+                <button id="clearButton" class="action-button secondary">
+                    🗑️ クリア
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <div class="settings-section">
+                <button id="settingsButton" class="settings-button">
+                    ⚙️ 設定
+                </button>
+            </div>
+            <div class="version-info">
+                <span id="versionInfo">Version: Loading...</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Settings Modal (to be implemented) -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>設定</h2>
+            <div class="setting-group">
+                <label for="obsidianPath">Obsidian Vaultパス:</label>
+                <input type="text" id="obsidianPath" placeholder="Vaultフォルダを選択してください">
+                <button id="browseVault">参照</button>
+            </div>
+            <div class="setting-group">
+                <label for="openaiKey">OpenAI APIキー:</label>
+                <input type="password" id="openaiKey" placeholder="APIキーを入力してください">
+            </div>
+            <div class="modal-actions">
+                <button id="saveSettings" class="action-button">保存</button>
+                <button id="cancelSettings" class="action-button secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

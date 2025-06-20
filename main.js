@@ -327,6 +327,61 @@ ipcMain.handle('delete-voice-memo', async (event, fileName, options = {}) => {
   }
 });
 
+// Environment file management
+ipcMain.handle('create-env-file', async (event, settings) => {
+  try {
+    const envPath = path.join(__dirname, '.env');
+    const examplePath = path.join(__dirname, '.env.example');
+    
+    // Check if .env already exists
+    if (await fs.pathExists(envPath)) {
+      return { success: false, error: '.env file already exists' };
+    }
+    
+    // Read the example file as template
+    let envContent = '';
+    if (await fs.pathExists(examplePath)) {
+      envContent = await fs.readFile(examplePath, 'utf8');
+      
+      // Replace placeholder values with actual settings
+      if (settings.openaiApiKey) {
+        envContent = envContent.replace('your_openai_api_key_here', settings.openaiApiKey);
+      }
+      if (settings.obsidianVaultPath) {
+        envContent = envContent.replace('/path/to/your/obsidian/vault', settings.obsidianVaultPath);
+      }
+    } else {
+      // Create basic .env content if no example exists
+      envContent = `# OpenAI API Configuration
+OPENAI_API_KEY=${settings.openaiApiKey || 'your_openai_api_key_here'}
+
+# Obsidian Configuration  
+OBSIDIAN_VAULT_PATH=${settings.obsidianVaultPath || '/path/to/your/obsidian/vault'}
+
+# App Configuration
+NODE_ENV=development
+`;
+    }
+    
+    await fs.writeFile(envPath, envContent, 'utf8');
+    return { success: true, path: envPath };
+  } catch (error) {
+    console.error('Failed to create .env file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('check-env-file', async () => {
+  try {
+    const envPath = path.join(__dirname, '.env');
+    const exists = await fs.pathExists(envPath);
+    return { success: true, exists, path: envPath };
+  } catch (error) {
+    console.error('Failed to check .env file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Prevent navigation away from the app
 app.on('web-contents-created', (event, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {

@@ -30,4 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: settings => ipcRenderer.invoke('save-settings', settings),
   validateObsidianVault: vaultPath => ipcRenderer.invoke('validate-obsidian-vault', vaultPath),
+  
+  // Environment file management
+  createEnvFile: settings => ipcRenderer.invoke('create-env-file', settings),
+  checkEnvFile: () => ipcRenderer.invoke('check-env-file'),
 });

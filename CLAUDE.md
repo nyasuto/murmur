@@ -17,6 +17,7 @@ This process enables continuous improvement of project rules.
 **Use the Makefile for all development tasks!** Standardize development workflows through a comprehensive Makefile.
 
 Essential Makefile targets to implement:
+
 - **Quick start:** `make help` - Show all available commands
 - **Code quality:** `make quality` - Run all quality checks (lint + format + type-check)
 - **Auto-fix:** `make quality-fix` - Auto-fix issues where possible
@@ -25,6 +26,7 @@ Essential Makefile targets to implement:
 - **Git hooks:** `make git-hooks` - Setup pre-commit hooks
 
 ### Individual Quality Targets
+
 - `make lint` - Run linting
 - `make format` - Format code
 - `make type-check` - Type checking
@@ -32,6 +34,7 @@ Essential Makefile targets to implement:
 - `make test-cov` - Run tests with coverage
 
 ### Development Lifecycle
+
 - `make install` - Install dependencies
 - `make build` - Build package
 - `make clean` - Clean artifacts
@@ -40,26 +43,32 @@ Essential Makefile targets to implement:
 ## GitHub Issue Management Rules
 
 ### 🔴 CRITICAL: Issue Language Requirement
+
 **ALL GitHub issues MUST be written in Japanese (日本語) - This is a project rule.**
 
 ### Required Issue Format
+
 All issues must follow this Japanese template:
 
 ```markdown
 ## 🎯 [問題の種類]: [簡潔な説明]
 
 ### **優先度: [緊急/高/中/低]**
+
 **影響:** [影響範囲]
 **コンポーネント:** [関連コンポーネント]  
 **ファイル:** [関連ファイル]
 
 ### 問題の説明
+
 [具体的な問題内容と背景]
 
 ### 推奨解決策
+
 [実装すべき解決策の詳細]
 
 ### 受け入れ基準
+
 - [ ] [具体的な完了条件1]
 - [ ] [具体的な完了条件2]
 
@@ -67,15 +76,18 @@ All issues must follow this Japanese template:
 ```
 
 ### Required Label System
+
 All issues MUST have both Priority and Type labels:
 
 #### Priority Labels (優先度ラベル)
+
 - `priority: critical` - 緊急 (アプリクラッシュ、セキュリティ問題)
 - `priority: high` - 高 (コア機能、重要なバグ)
 - `priority: medium` - 中 (改善、軽微なバグ)
 - `priority: low` - 低 (将来機能、ドキュメント)
 
 #### Type Labels (種類ラベル)
+
 - `type: feature` - 新機能
 - `type: bug` - バグ修正
 - `type: enhancement` - 既存機能の改善
@@ -86,6 +98,7 @@ All issues MUST have both Priority and Type labels:
 - `type: security` - セキュリティ関連
 
 ### Issue Title Examples (日本語例)
+
 ```
 title: "🚨 緊急: テスト設定でのAPIキー露出問題を修正"
 labels: ["priority: critical", "type: bug"]
@@ -100,6 +113,7 @@ labels: ["priority: low", "type: docs"]
 ## Git Workflow and Branch Management
 
 ### Core Git Rules
+
 - **NEVER commit directly to main branch**
 - Always create feature branches for changes
 - Create Pull Requests for ALL changes, regardless of size
@@ -107,7 +121,9 @@ labels: ["priority: low", "type: docs"]
 - Include issue references in PR descriptions: `Closes #X`
 
 ### Branch Naming Convention
+
 Use descriptive, consistent branch names:
+
 - Feature: `feat/issue-X-feature-name`
 - Bug fix: `fix/issue-X-description`
 - Hotfix: `hotfix/X-description`
@@ -116,6 +132,7 @@ Use descriptive, consistent branch names:
 - CI/CD: `cicd/X-description`
 
 ### Commit Message Format
+
 ```
 <type>: <description>
 
@@ -130,6 +147,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 **Commit Types:** feat, fix, docs, style, refactor, test, chore, ci
 
 ### Required Development Workflow
+
 1. Create feature branch from main
 2. Make changes
 3. **Run quality checks before commit:**
@@ -142,6 +160,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 8. Merge via GitHub interface (not locally)
 
 ### Pre-commit Hook Setup
+
 - Run `make git-hooks` to setup automatic quality checks
 - Prevents committing code that fails quality standards
 - Saves time by catching issues early
@@ -149,19 +168,23 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ## Code Quality Standards
 
 ### Quality Check Integration
+
 Quality checks should be:
+
 - **Automated** through Makefile targets
 - **Consistent** across all development environments
 - **Enforceable** through pre-commit hooks and CI/CD
 - **Fast** to encourage frequent use
 
 ### Essential Quality Tools
+
 - **Linting:** Language-specific linters (ruff for Python, eslint for JS, etc.)
 - **Formatting:** Code formatters (black/ruff for Python, prettier for JS, etc.)
 - **Type Checking:** Static type analysis (mypy for Python, TypeScript, etc.)
 - **Testing:** Unit and integration tests with coverage reporting
 
 ### CI/CD Integration
+
 - All quality checks must pass in CI before merge
 - Separate CI jobs for different check types (lint, test, type-check)
 - Coverage reporting and tracking
@@ -170,13 +193,14 @@ Quality checks should be:
 ## Testing Standards
 
 ### Test Organization
+
 - Unit tests for individual components
 - Integration tests for system interactions
 - Mocking external dependencies to avoid platform issues
 - Clear test naming: `test_<function>_<scenario>_<expected_result>`
 
-
 ### CI Test Environment
+
 - Mock platform-specific dependencies for cross-platform compatibility
 - Use consistent test databases/fixtures
 - Parallel test execution where possible
@@ -185,12 +209,14 @@ Quality checks should be:
 ## Error Handling and Debugging
 
 ### Logging Standards
+
 - Structured logging with appropriate levels
 - Context-rich error messages
 - Avoid logging sensitive information
 - Performance-conscious logging (lazy evaluation)
 
 ### Error Recovery
+
 - Graceful degradation for non-critical failures
 - Clear error messages for users
 - Retry mechanisms with exponential backoff
@@ -199,12 +225,14 @@ Quality checks should be:
 ## Documentation Standards
 
 ### Code Documentation
+
 - Clear docstrings for public APIs
 - Type hints for better IDE support
 - README with setup and usage instructions
 - CHANGELOG for version tracking
 
 ### Process Documentation
+
 - This CLAUDE.md file for development standards
 - Contributing guidelines for external contributors
 - Architecture decision records (ADRs) for major decisions
@@ -213,12 +241,13 @@ Quality checks should be:
 ## Security Considerations
 
 ### Secrets Management
+
 - Never commit secrets to version control
 - Use environment variables for configuration from .env
 - Scan for accidentally committed secrets
 
 ### Dependency Management
+
 - Regular dependency updates by dependabot
 - Security vulnerability scanning
 - Pin versions for reproducible builds
-

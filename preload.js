@@ -9,9 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
   showSaveDialog: () => ipcRenderer.invoke('show-save-dialog'),
   
-  // Audio recording (to be implemented)
-  startRecording: () => ipcRenderer.invoke('start-recording'),
-  stopRecording: () => ipcRenderer.invoke('stop-recording'),
+  // Audio recording
+  saveAudioRecording: (audioBuffer, fileName) => ipcRenderer.invoke('save-audio-recording', audioBuffer, fileName),
+  getAudioRecordingPath: () => ipcRenderer.invoke('get-audio-recording-path'),
+  cleanupAudioRecording: () => ipcRenderer.invoke('cleanup-audio-recording'),
   
   // OpenAI API calls (to be implemented)
   transcribeAudio: (audioData) => ipcRenderer.invoke('transcribe-audio', audioData),

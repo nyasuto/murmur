@@ -22,14 +22,82 @@ class SettingsManager {
    */
   async initialize() {
     try {
+      console.log('Initializing settings manager...');
       await fs.ensureDir(this.settingsDir);
       
-      // Create settings file if it doesn't exist
-      if (!(await fs.pathExists(this.settingsFile))) {
+      // Check for legacy config.json file and migrate first
+      const legacyConfigPath = path.join(this.settingsDir, 'config.json');
+      const hasLegacyConfig = await fs.pathExists(legacyConfigPath);
+      const hasSettings = await fs.pathExists(this.settingsFile);
+      
+      console.log('Settings initialization check:', {
+        settingsDir: this.settingsDir,
+        settingsFile: this.settingsFile,
+        hasLegacyConfig,
+        hasSettings
+      });
+      
+      if (hasLegacyConfig && !hasSettings) {
+        console.log('Found legacy config.json, migrating during initialization...');
+        await this.migrateLegacyConfig();
+      } else if (!hasSettings) {
+        console.log('No settings found, creating default settings...');
         await this.saveSettings(this.defaultSettings);
+      } else {
+        console.log('Settings file already exists, skipping initialization');
       }
     } catch (error) {
       console.error('Failed to initialize settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Migrate legacy config.json to new settings.json format
+   */
+  async migrateLegacyConfig() {
+    try {
+      const legacyConfigPath = path.join(this.settingsDir, 'config.json');
+      console.log('Reading legacy config from:', legacyConfigPath);
+      
+      const legacyData = await fs.readJson(legacyConfigPath);
+      console.log('Legacy config loaded:', {
+        hasApiKey: !!legacyData.openai_api_key,
+        hasVaultPath: !!legacyData.obsidian_vault_path,
+        apiKeyLength: legacyData.openai_api_key?.length || 0
+      });
+      
+      // Map legacy fields to new settings format
+      const migratedSettings = {
+        ...this.defaultSettings,
+        obsidianVaultPath: legacyData.obsidian_vault_path || '',
+        openaiApiKey: legacyData.openai_api_key || '',
+        fileNameFormat: legacyData.file_naming_pattern || this.defaultSettings.fileNameFormat,
+        language: legacyData.whisper_language || legacyData.primary_language || 'ja',
+        gptModel: legacyData.openai_model || 'gpt-3.5-turbo',
+        temperature: legacyData.openai_temperature || 0.7,
+        autoSave: legacyData.auto_save_enabled !== undefined ? legacyData.auto_save_enabled : true
+      };
+      
+      console.log('Migrated settings:', {
+        hasApiKey: !!migratedSettings.openaiApiKey,
+        hasVaultPath: !!migratedSettings.obsidianVaultPath,
+        vaultPath: migratedSettings.obsidianVaultPath,
+        model: migratedSettings.gptModel
+      });
+      
+      // Save migrated settings
+      await fs.writeJson(this.settingsFile, migratedSettings, { spaces: 2 });
+      console.log('Migrated settings saved to:', this.settingsFile);
+      
+      // Backup legacy file
+      const backupPath = path.join(this.settingsDir, 'config.json.backup');
+      await fs.move(legacyConfigPath, backupPath);
+      console.log('Legacy config backed up to:', backupPath);
+      
+      return migratedSettings;
+    } catch (error) {
+      console.error('Failed to migrate legacy config:', error);
       throw error;
     }
   }
@@ -43,10 +111,21 @@ class SettingsManager {
       await this.initialize();
       
       if (await fs.pathExists(this.settingsFile)) {
+        console.log('Loading settings from:', this.settingsFile);
         const settingsData = await fs.readJson(this.settingsFile);
-        return { ...this.defaultSettings, ...settingsData };
+        const mergedSettings = { ...this.defaultSettings, ...settingsData };
+        
+        console.log('Settings loaded successfully:', {
+          hasApiKey: !!mergedSettings.openaiApiKey,
+          hasVaultPath: !!mergedSettings.obsidianVaultPath,
+          vaultPath: mergedSettings.obsidianVaultPath,
+          model: mergedSettings.gptModel
+        });
+        
+        return mergedSettings;
       }
       
+      console.log('No settings file found, returning defaults');
       return this.defaultSettings;
     } catch (error) {
       console.error('Failed to load settings:', error);

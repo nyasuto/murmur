@@ -126,9 +126,32 @@ git-hooks: ## Git pre-commitフックをセットアップ
 	@echo "$(GREEN)🪝 Gitフックをセットアップ中...$(RESET)"
 	@mkdir -p .git/hooks
 	@echo '#!/bin/sh' > .git/hooks/pre-commit
+	@echo '' >> .git/hooks/pre-commit
+	@echo '# Branch protection check' >> .git/hooks/pre-commit
+	@echo 'current_branch=$$(git rev-parse --abbrev-ref HEAD)' >> .git/hooks/pre-commit
+	@echo 'protected_branches="main master develop"' >> .git/hooks/pre-commit
+	@echo '' >> .git/hooks/pre-commit
+	@echo 'for branch in $$protected_branches; do' >> .git/hooks/pre-commit
+	@echo '  if [ "$$current_branch" = "$$branch" ]; then' >> .git/hooks/pre-commit
+	@echo '    echo "🚨 Error: Direct commits to $$branch branch are not allowed!"' >> .git/hooks/pre-commit
+	@echo '    echo "Please create a feature branch instead:"' >> .git/hooks/pre-commit
+	@echo '    echo "  git checkout -b feat/your-feature-name"' >> .git/hooks/pre-commit
+	@echo '    exit 1' >> .git/hooks/pre-commit
+	@echo '  fi' >> .git/hooks/pre-commit
+	@echo 'done' >> .git/hooks/pre-commit
+	@echo '' >> .git/hooks/pre-commit
+	@echo '# Quality checks' >> .git/hooks/pre-commit
+	@echo 'echo "🔍 Running quality checks on branch: $$current_branch"' >> .git/hooks/pre-commit
 	@echo 'make quality' >> .git/hooks/pre-commit
+	@echo '' >> .git/hooks/pre-commit
+	@echo 'if [ $$? -eq 0 ]; then' >> .git/hooks/pre-commit
+	@echo '  echo "✅ All quality checks passed!"' >> .git/hooks/pre-commit
+	@echo 'else' >> .git/hooks/pre-commit
+	@echo '  echo "❌ Quality checks failed. Please fix issues before committing."' >> .git/hooks/pre-commit
+	@echo '  exit 1' >> .git/hooks/pre-commit
+	@echo 'fi' >> .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
-	@echo "$(GREEN)✅ Pre-commitフックを設定しました$(RESET)"
+	@echo "$(GREEN)✅ Pre-commitフック（ブランチ保護付き）を設定しました$(RESET)"
 
 ## 📊 環境情報
 env-info: ## 開発環境の情報を表示

@@ -21,10 +21,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testOpenAIConnection: () => ipcRenderer.invoke('test-openai-connection'),
   updateOpenAIKey: apiKey => ipcRenderer.invoke('update-openai-key', apiKey),
 
-  // File saving (to be implemented)
-  saveToObsidian: (content, fileName) => ipcRenderer.invoke('save-to-obsidian', content, fileName),
+  // Obsidian operations
+  saveToObsidian: (content, options) => ipcRenderer.invoke('save-to-obsidian', content, options),
+  listVoiceMemos: options => ipcRenderer.invoke('list-voice-memos', options),
+  deleteVoiceMemo: (fileName, options) => ipcRenderer.invoke('delete-voice-memo', fileName, options),
 
-  // Settings (to be implemented)
+  // Settings management
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: settings => ipcRenderer.invoke('save-settings', settings),
+  validateObsidianVault: vaultPath => ipcRenderer.invoke('validate-obsidian-vault', vaultPath),
 });

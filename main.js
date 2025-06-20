@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs-extra');
 const os = require('os');
 const OpenAIClient = require('./src/openai-client');
+const SettingsManager = require('./src/settings-manager');
+const ObsidianSaver = require('./src/obsidian-saver');
 require('dotenv').config();
 
 // Keep a global reference of the window object
@@ -14,6 +16,10 @@ const tempDir = path.join(os.tmpdir(), 'murmur-recordings');
 
 // OpenAI client instance
 let openaiClient = null;
+
+// Settings and Obsidian instances
+let settingsManager = null;
+let obsidianSaver = null;
 
 function createWindow() {
   // Create the browser window
@@ -63,9 +69,24 @@ function initializeOpenAIClient() {
   }
 }
 
+// Initialize settings and Obsidian
+async function initializeSettings() {
+  try {
+    settingsManager = new SettingsManager();
+    await settingsManager.initialize();
+    
+    obsidianSaver = new ObsidianSaver(settingsManager);
+    
+    console.log('Settings and Obsidian saver initialized');
+  } catch (error) {
+    console.error('Failed to initialize settings:', error);
+  }
+}
+
 // App event handlers
 app.whenReady().then(async () => {
   await initializeTempDir();
+  await initializeSettings();
   initializeOpenAIClient();
   createWindow();
 });
@@ -90,9 +111,8 @@ ipcMain.handle('get-app-version', () => {
 });
 
 ipcMain.handle('show-save-dialog', async () => {
-  const result = await dialog.showSaveDialog(mainWindow, {
+  const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Obsidian Vaultのパスを選択',
-    defaultPath: 'vault',
     properties: ['openDirectory'],
   });
   return result;
@@ -211,6 +231,98 @@ ipcMain.handle('update-openai-key', async (event, apiKey) => {
   } catch (error) {
     console.error('Failed to update OpenAI key:', error);
     openaiClient = null;
+    return { success: false, error: error.message };
+  }
+});
+
+// Settings handlers
+ipcMain.handle('get-settings', async () => {
+  try {
+    if (!settingsManager) {
+      return { success: false, error: 'Settings manager not initialized' };
+    }
+    
+    const settings = await settingsManager.loadSettings();
+    return { success: true, settings };
+  } catch (error) {
+    console.error('Failed to get settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('save-settings', async (event, newSettings) => {
+  try {
+    if (!settingsManager) {
+      return { success: false, error: 'Settings manager not initialized' };
+    }
+    
+    const success = await settingsManager.saveSettings(newSettings);
+    
+    // Update OpenAI client if API key changed
+    if (newSettings.openaiApiKey && newSettings.openaiApiKey.trim() !== '') {
+      openaiClient = new OpenAIClient(newSettings.openaiApiKey.trim());
+    }
+    
+    return { success, message: success ? 'Settings saved successfully' : 'Failed to save settings' };
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('validate-obsidian-vault', async (event, vaultPath) => {
+  try {
+    if (!settingsManager) {
+      return { success: false, error: 'Settings manager not initialized' };
+    }
+    
+    const validation = await settingsManager.validateObsidianVault(vaultPath);
+    return { success: true, validation };
+  } catch (error) {
+    console.error('Failed to validate vault:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Obsidian save handlers
+ipcMain.handle('save-to-obsidian', async (event, content, options = {}) => {
+  try {
+    if (!obsidianSaver) {
+      return { success: false, error: 'Obsidian saver not initialized' };
+    }
+    
+    const result = await obsidianSaver.saveToVault(content, options);
+    return result;
+  } catch (error) {
+    console.error('Failed to save to Obsidian:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('list-voice-memos', async (event, options = {}) => {
+  try {
+    if (!obsidianSaver) {
+      return { success: false, error: 'Obsidian saver not initialized' };
+    }
+    
+    const result = await obsidianSaver.listVoiceMemos(options);
+    return result;
+  } catch (error) {
+    console.error('Failed to list voice memos:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-voice-memo', async (event, fileName, options = {}) => {
+  try {
+    if (!obsidianSaver) {
+      return { success: false, error: 'Obsidian saver not initialized' };
+    }
+    
+    const result = await obsidianSaver.deleteVoiceMemo(fileName, options);
+    return result;
+  } catch (error) {
+    console.error('Failed to delete voice memo:', error);
     return { success: false, error: error.message };
   }
 });

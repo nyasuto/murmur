@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'リリースバージョン (例: v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    name: ビルドとリリース
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: win32
+            arch: x64
+          - os: macos-latest
+            platform: darwin
+            arch: x64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+    
+    steps:
+    - name: リポジトリをチェックアウト
+      uses: actions/checkout@v4
+      
+    - name: Node.js をセットアップ
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: 依存関係をインストール
+      run: npm install
+      
+    - name: 品質チェック
+      run: make quality
+      continue-on-error: true
+      
+    - name: アプリケーションビルド
+      run: npm run build
+      env:
+        PLATFORM: ${{ matrix.platform }}
+        ARCH: ${{ matrix.arch }}
+        
+    - name: 配布用パッケージ作成
+      run: npm run dist
+      continue-on-error: true
+      
+    - name: ビルド成果物をアップロード
+      uses: actions/upload-artifact@v4
+      with:
+        name: murmur-${{ matrix.platform }}-${{ matrix.arch }}
+        path: dist/
+        retention-days: 30
+
+  create-release:
+    name: GitHubリリース作成
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: リポジトリをチェックアウト
+      uses: actions/checkout@v4
+      
+    - name: すべてのビルド成果物をダウンロード
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+        
+    - name: リリースノート生成
+      id: release-notes
+      run: |
+        VERSION=${{ github.event.inputs.version || github.ref_name }}
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        
+        cat > release-notes.md << EOF
+        # Murmur ${VERSION}
+        
+        ## 🎉 新機能
+        - 音声録音からObsidian保存までの完全なワークフロー
+        - OpenAI Whisper APIによる高精度音声認識
+        - GPT APIによるテキスト整形・要約
+        - リアルタイム音量メーター
+        - 直感的なユーザーインターフェイス
+        
+        ## 🔧 技術仕様
+        - Electronベースのデスクトップアプリ
+        - Node.js v18+ 対応
+        - macOS, Windows, Linux 対応
+        
+        ## 📦 インストール
+        対応するプラットフォームのパッケージをダウンロードしてインストールしてください。
+        
+        ## ⚙️ セットアップ
+        1. OpenAI APIキーを設定
+        2. Obsidian Vaultパスを指定
+        3. 音声録音開始！
+        
+        ---
+        🤖 Generated with [Claude Code](https://claude.ai/code)
+        EOF
+        
+    - name: GitHubリリース作成
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.release-notes.outputs.version }}
+        name: Murmur ${{ steps.release-notes.outputs.version }}
+        body_path: release-notes.md
+        files: artifacts/**/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

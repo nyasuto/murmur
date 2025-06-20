@@ -23,10 +23,10 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add icon later
-    title: 'Murmur - 音声ライフログ'
+    title: 'Murmur - 音声ライフログ',
   });
 
   // Load the app
@@ -93,7 +93,7 @@ ipcMain.handle('show-save-dialog', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Obsidian Vaultのパスを選択',
     defaultPath: 'vault',
-    properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
   return result;
 });
@@ -117,7 +117,7 @@ ipcMain.handle('get-audio-recording-path', () => {
 
 ipcMain.handle('cleanup-audio-recording', async () => {
   try {
-    if (currentRecordingPath && await fs.pathExists(currentRecordingPath)) {
+    if (currentRecordingPath && (await fs.pathExists(currentRecordingPath))) {
       await fs.remove(currentRecordingPath);
     }
     currentRecordingPath = null;
@@ -135,7 +135,7 @@ ipcMain.handle('transcribe-audio', async (event, options = {}) => {
       return { success: false, error: 'OpenAI client not initialized. Please check your API key.' };
     }
 
-    if (!currentRecordingPath || !await fs.pathExists(currentRecordingPath)) {
+    if (!currentRecordingPath || !(await fs.pathExists(currentRecordingPath))) {
       return { success: false, error: 'No audio recording found' };
     }
 
@@ -143,7 +143,7 @@ ipcMain.handle('transcribe-audio', async (event, options = {}) => {
     const result = await openaiClient.transcribeAudio(currentRecordingPath, {
       language: options.language || 'ja', // Default to Japanese
       temperature: options.temperature || 0,
-      response_format: 'json'
+      response_format: 'json',
     });
 
     return result;
@@ -167,7 +167,7 @@ ipcMain.handle('format-text', async (event, text, options = {}) => {
     const result = await openaiClient.formatText(text, {
       model: options.model || 'gpt-3.5-turbo',
       temperature: options.temperature || 0.7,
-      max_tokens: options.max_tokens || 2000
+      max_tokens: options.max_tokens || 2000,
     });
 
     return result;
@@ -199,7 +199,7 @@ ipcMain.handle('update-openai-key', async (event, apiKey) => {
     }
 
     openaiClient = new OpenAIClient(apiKey.trim());
-    
+
     // Test the connection
     const isConnected = await openaiClient.testConnection();
     if (isConnected) {
@@ -219,7 +219,7 @@ ipcMain.handle('update-openai-key', async (event, apiKey) => {
 app.on('web-contents-created', (event, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
-    
+
     if (parsedUrl.origin !== 'file://') {
       event.preventDefault();
     }

@@ -48,8 +48,8 @@ async function initializeApp() {
     // Check if first-time setup is needed
     await checkFirstTimeSetup();
 
-    // Enable record button after initialization
-    recordButton.disabled = false;
+    // Check and enable record button after initialization
+    await checkRecordButtonState();
 
     await window.electronAPI.logInfo('Renderer process initialized successfully', { version });
   } catch (error) {
@@ -60,7 +60,9 @@ async function initializeApp() {
 // Check if first-time setup is needed
 async function checkFirstTimeSetup() {
   try {
+    await window.electronAPI.logInfo('Checking first-time setup');
     const result = await window.electronAPI.getSettings();
+    
     if (result.success) {
       const settings = result.settings;
       
@@ -68,34 +70,57 @@ async function checkFirstTimeSetup() {
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
       const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
       
+      await window.electronAPI.logInfo('Settings check result', { 
+        hasApiKey, 
+        hasVaultPath,
+        apiKeyLength: settings.openaiApiKey?.length,
+        vaultPath: settings.obsidianVaultPath 
+      });
+      
       if (!hasApiKey || !hasVaultPath) {
+        await window.electronAPI.logWarn('Essential settings missing, showing setup wizard');
         showSetupWizard();
         return;
       }
       
       // Test OpenAI connection if API key exists
       if (hasApiKey) {
+        await window.electronAPI.logInfo('Testing OpenAI connection');
         const connectionTest = await window.electronAPI.testOpenAIConnection();
         if (!connectionTest.success) {
+          await window.electronAPI.logWarn('OpenAI connection test failed', { error: connectionTest.error });
           showSetupWizard('OpenAI APIキーの接続に問題があります。設定を確認してください。');
           return;
+        } else {
+          await window.electronAPI.logInfo('OpenAI connection test passed');
         }
       }
       
       // Validate Obsidian vault if path exists
       if (hasVaultPath) {
+        await window.electronAPI.logInfo('Validating Obsidian vault path');
         const validation = await window.electronAPI.validateObsidianVault(hasVaultPath);
         if (validation.success && !validation.validation.valid) {
+          await window.electronAPI.logWarn('Obsidian vault validation failed', { 
+            error: validation.validation.error 
+          });
           showSetupWizard('Obsidian Vaultパスに問題があります。設定を確認してください。');
           return;
+        } else {
+          await window.electronAPI.logInfo('Obsidian vault validation passed');
         }
       }
+      
+      // All checks passed, enable recording
+      await window.electronAPI.logInfo('All setup checks passed, enabling recording');
+      
     } else {
       // Settings couldn't be loaded, show setup wizard
+      await window.electronAPI.logWarn('Settings could not be loaded', { error: result.error });
       showSetupWizard();
     }
   } catch (error) {
-    console.error('Failed to check first-time setup:', error);
+    await window.electronAPI.logError('Failed to check first-time setup', error);
     showSetupWizard('設定の確認中にエラーが発生しました。設定を確認してください。');
   }
 }
@@ -575,19 +600,35 @@ function hideSettings() {
 // Check if record button should be enabled
 async function checkRecordButtonState() {
   try {
+    await window.electronAPI.logInfo('Checking record button state');
     const result = await window.electronAPI.getSettings();
+    
     if (result.success) {
       const settings = result.settings;
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
       const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
       
+      await window.electronAPI.logInfo('Record button state check', { 
+        hasApiKey, 
+        hasVaultPath, 
+        buttonExists: !!recordButton,
+        currentlyDisabled: recordButton?.disabled 
+      });
+      
       if (hasApiKey && hasVaultPath && recordButton) {
         recordButton.disabled = false;
         recordButton.title = '';
+        await window.electronAPI.logInfo('Record button enabled');
+      } else {
+        await window.electronAPI.logWarn('Record button not enabled', { 
+          reason: !hasApiKey ? 'No API key' : !hasVaultPath ? 'No vault path' : 'Button not found' 
+        });
       }
+    } else {
+      await window.electronAPI.logWarn('Failed to get settings for button state check', { error: result.error });
     }
   } catch (error) {
-    console.error('Failed to check record button state:', error);
+    await window.electronAPI.logError('Failed to check record button state', error);
   }
 }
 

@@ -99,7 +99,7 @@ async function checkFirstTimeSetup() {
       // Validate Obsidian vault if path exists
       if (hasVaultPath) {
         await window.electronAPI.logInfo('Validating Obsidian vault path');
-        const validation = await window.electronAPI.validateObsidianVault(hasVaultPath);
+        const validation = await window.electronAPI.validateObsidianVault(settings.obsidianVaultPath);
         if (validation.success && !validation.validation.valid) {
           await window.electronAPI.logWarn('Obsidian vault validation failed', { 
             error: validation.validation.error 

@@ -22,11 +22,61 @@ Electronアプリ
 ├─ OpenAI API通信 (Whisper, GPT)
 └─ Obsidianへのファイル保存 (Markdown)
 
-必要条件
-• Electron
-• Node.js
-• OpenAI APIキー（.envファイルに設定済み）
-• Obsidian（Vaultはすでにユーザ側で準備済み）
+## 必要条件
+• **Node.js** (v16 以上)
+• **OpenAI APIキー** - 音声認識とテキスト整形に使用
+• **Obsidian** - ライフログの保存先として使用
+
+## 🚀 クイックスタート
+
+### 1. インストール
+```bash
+git clone https://github.com/your-username/murmur.git
+cd murmur
+npm install
+```
+
+### 2. 初期設定
+アプリを初回起動すると、設定ウィザードが表示されます：
+
+```bash
+npm run dev
+```
+
+設定ウィザードで以下を設定してください：
+- **OpenAI APIキー**: [OpenAI Platform](https://platform.openai.com/api-keys)で取得
+- **Obsidian Vaultパス**: ライフログを保存するObsidianフォルダ
+
+### 3. 環境変数設定（オプション）
+設定ウィザードでも`.env`ファイル作成を案内されますが、手動で作成する場合：
+
+```bash
+cp .env.example .env
+```
+
+`.env`ファイルを編集：
+```bash
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Obsidian Configuration
+OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
+
+# App Configuration
+NODE_ENV=development
+```
+
+### 4. 開発コマンド
+```bash
+# アプリを開発モードで起動
+npm run dev
+
+# コード品質チェック
+make quality
+
+# アプリをビルド
+npm run build
+```
 
 実装手順
 

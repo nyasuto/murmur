@@ -43,12 +43,58 @@ async function initializeApp() {
     const version = await window.electronAPI.getAppVersion();
     versionInfo.textContent = `Version: ${version}`;
 
+    // Check if first-time setup is needed
+    await checkFirstTimeSetup();
+
     // Enable record button after initialization
     recordButton.disabled = false;
 
     console.log('App initialized successfully');
   } catch (error) {
     console.error('Failed to initialize app:', error);
+  }
+}
+
+// Check if first-time setup is needed
+async function checkFirstTimeSetup() {
+  try {
+    const result = await window.electronAPI.getSettings();
+    if (result.success) {
+      const settings = result.settings;
+      
+      // Check if essential settings are missing
+      const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
+      const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
+      
+      if (!hasApiKey || !hasVaultPath) {
+        showSetupWizard();
+        return;
+      }
+      
+      // Test OpenAI connection if API key exists
+      if (hasApiKey) {
+        const connectionTest = await window.electronAPI.testOpenAIConnection();
+        if (!connectionTest.success) {
+          showSetupWizard('OpenAI APIキーの接続に問題があります。設定を確認してください。');
+          return;
+        }
+      }
+      
+      // Validate Obsidian vault if path exists
+      if (hasVaultPath) {
+        const validation = await window.electronAPI.validateObsidianVault(hasVaultPath);
+        if (validation.success && !validation.validation.valid) {
+          showSetupWizard('Obsidian Vaultパスに問題があります。設定を確認してください。');
+          return;
+        }
+      }
+    } else {
+      // Settings couldn't be loaded, show setup wizard
+      showSetupWizard();
+    }
+  } catch (error) {
+    console.error('Failed to check first-time setup:', error);
+    showSetupWizard('設定の確認中にエラーが発生しました。設定を確認してください。');
   }
 }
 
@@ -414,9 +460,99 @@ function showSettings() {
   loadSettings();
 }
 
+// Show setup wizard (enhanced settings modal for first-time setup)
+function showSetupWizard(message = null) {
+  // Update modal title and content for setup wizard
+  const modalContent = settingsModal.querySelector('.modal-content h2');
+  modalContent.textContent = '🎉 Murmurへようこそ！初期設定を行います';
+  
+  // Add welcome message if provided
+  if (message) {
+    const existingMessage = settingsModal.querySelector('.setup-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'setup-message';
+    messageDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-bottom: 15px; border-radius: 4px; color: #856404;';
+    messageDiv.textContent = message;
+    modalContent.insertAdjacentElement('afterend', messageDiv);
+  } else {
+    // Add welcome instructions
+    const existingMessage = settingsModal.querySelector('.setup-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'setup-message';
+    messageDiv.style.cssText = 'background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 15px; border-radius: 4px; color: #0c5460;';
+    messageDiv.innerHTML = `
+      <strong>音声ライフログを始めるために、以下の設定が必要です：</strong><br>
+      <br>
+      <strong>1. OpenAI APIキー</strong> - 音声をテキストに変換するために必要<br>
+      <strong>2. Obsidian Vaultパス</strong> - ライフログを保存する場所<br>
+      <br>
+      <em>どちらも後で変更できます。</em>
+    `;
+    modalContent.insertAdjacentElement('afterend', messageDiv);
+  }
+  
+  // Change cancel button to "後で設定" for setup wizard
+  const cancelButton = document.getElementById('cancelSettings');
+  cancelButton.textContent = '後で設定';
+  
+  // Show modal
+  settingsModal.classList.remove('hidden');
+  loadSettings();
+  
+  // Disable record button until setup is complete
+  if (recordButton) {
+    recordButton.disabled = true;
+    recordButton.title = '設定を完了してから録音を開始してください';
+  }
+}
+
 // Hide settings modal
 function hideSettings() {
+  // Reset modal content
+  const modalContent = settingsModal.querySelector('.modal-content h2');
+  modalContent.textContent = '設定';
+  
+  // Remove any setup messages
+  const existingMessage = settingsModal.querySelector('.setup-message');
+  if (existingMessage) {
+    existingMessage.remove();
+  }
+  
+  // Reset cancel button text
+  const cancelButton = document.getElementById('cancelSettings');
+  cancelButton.textContent = 'キャンセル';
+  
+  // Re-enable record button if settings are complete
+  checkRecordButtonState();
+  
   settingsModal.classList.add('hidden');
+}
+
+// Check if record button should be enabled
+async function checkRecordButtonState() {
+  try {
+    const result = await window.electronAPI.getSettings();
+    if (result.success) {
+      const settings = result.settings;
+      const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
+      const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
+      
+      if (hasApiKey && hasVaultPath && recordButton) {
+        recordButton.disabled = false;
+        recordButton.title = '';
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check record button state:', error);
+  }
 }
 
 // Load settings
@@ -463,7 +599,31 @@ async function saveSettings() {
     const result = await window.electronAPI.saveSettings(settings);
     
     if (result.success) {
-      alert('設定を保存しました。');
+      // Check if this was a first-time setup completion
+      const isSetupWizard = settingsModal.querySelector('.setup-message') !== null;
+      
+      if (isSetupWizard) {
+        // Offer to create .env file for easier configuration
+        const envCheck = await window.electronAPI.checkEnvFile();
+        if (envCheck.success && !envCheck.exists && (obsidianPath || openaiKey)) {
+          const createEnv = confirm('設定をより簡単に管理するため、.envファイルを作成しますか？\n\n.envファイルを作成すると、次回から自動的に設定が読み込まれます。');
+          if (createEnv) {
+            const envResult = await window.electronAPI.createEnvFile(settings);
+            if (envResult.success) {
+              alert('🎉 初期設定が完了しました！\n\n.envファイルも作成されました。これで音声ライフログの記録を開始できます。');
+            } else {
+              alert('🎉 初期設定が完了しました！\n\n.envファイルの作成に失敗しましたが、アプリは正常に動作します。');
+            }
+          } else {
+            alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
+          }
+        } else {
+          alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
+        }
+      } else {
+        alert('設定を保存しました。');
+      }
+      
       hideSettings();
     } else {
       alert(`設定の保存に失敗しました: ${result.error}`);

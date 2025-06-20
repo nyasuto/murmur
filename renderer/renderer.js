@@ -17,6 +17,11 @@ const settingsButton = document.getElementById('settingsButton');
 const settingsModal = document.getElementById('settingsModal');
 const versionInfo = document.getElementById('versionInfo');
 
+// Settings elements
+const openaiKeyInput = document.getElementById('openaiKey');
+const testApiKeyButton = document.getElementById('testApiKey');
+const apiKeyStatus = document.getElementById('apiKeyStatus');
+
 // State variables
 let isRecording = false;
 let mediaRecorder = null;
@@ -267,13 +272,18 @@ async function processAudio(audioBlob) {
     try {
         showProcessing('音声をテキストに変換中...');
         
-        // Convert blob to buffer for API call
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        const audioData = new Uint8Array(arrayBuffer);
-        
         // Transcribe audio using Whisper API
-        const transcription = await window.electronAPI.transcribeAudio(audioData);
-        transcribedText = transcription;
+        const transcriptionResult = await window.electronAPI.transcribeAudio({
+            language: 'ja', // Japanese
+            temperature: 0
+        });
+        
+        if (!transcriptionResult.success) {
+            throw new Error(transcriptionResult.error || 'Transcription failed');
+        }
+        
+        transcribedText = transcriptionResult.text;
+        console.log('Transcription completed:', transcribedText);
         
         // Show transcription result
         transcriptionText.textContent = transcribedText;
@@ -281,8 +291,21 @@ async function processAudio(audioBlob) {
         
         // Format text using GPT API
         showProcessing('テキストを整形中...');
-        const formatted = await window.electronAPI.formatText(transcribedText);
-        formattedContent = formatted;
+        const formattingResult = await window.electronAPI.formatText(transcribedText, {
+            model: 'gpt-3.5-turbo',
+            temperature: 0.7,
+            max_tokens: 2000
+        });
+        
+        if (!formattingResult.success) {
+            console.warn('Text formatting failed:', formattingResult.error);
+            // Use transcribed text as fallback
+            formattedContent = transcribedText;
+            alert('テキストの整形に失敗しましたが、音声認識は成功しました。');
+        } else {
+            formattedContent = formattingResult.formatted_text;
+            console.log('Text formatting completed');
+        }
         
         // Show formatted result
         formattedText.textContent = formattedContent;
@@ -296,7 +319,17 @@ async function processAudio(audioBlob) {
     } catch (error) {
         console.error('Audio processing failed:', error);
         hideProcessing();
-        alert('音声処理中にエラーが発生しました。設定を確認してください。');
+        
+        let errorMessage = '音声処理中にエラーが発生しました。';
+        if (error.message.includes('OpenAI client not initialized')) {
+            errorMessage = 'OpenAI APIキーが設定されていません。設定画面でAPIキーを入力してください。';
+        } else if (error.message.includes('No audio recording found')) {
+            errorMessage = '音声ファイルが見つかりません。もう一度録音してください。';
+        } else if (error.message.includes('Network')) {
+            errorMessage = 'ネットワーク接続エラーです。インターネット接続を確認してください。';
+        }
+        
+        alert(errorMessage);
     }
 }
 
@@ -412,6 +445,48 @@ async function browseVault() {
     }
 }
 
+// Test OpenAI API key
+async function testApiKey() {
+    const apiKey = openaiKeyInput.value.trim();
+    if (!apiKey) {
+        showApiKeyStatus('APIキーを入力してください', 'error');
+        return;
+    }
+
+    testApiKeyButton.disabled = true;
+    testApiKeyButton.textContent = 'テスト中...';
+    showApiKeyStatus('接続をテストしています...', 'testing');
+
+    try {
+        // Update the OpenAI client with the new key
+        const updateResult = await window.electronAPI.updateOpenAIKey(apiKey);
+        
+        if (updateResult.success) {
+            showApiKeyStatus('✅ 接続成功！APIキーは有効です', 'success');
+        } else {
+            showApiKeyStatus('❌ ' + updateResult.error, 'error');
+        }
+    } catch (error) {
+        console.error('API key test failed:', error);
+        showApiKeyStatus('❌ 接続テストに失敗しました', 'error');
+    } finally {
+        testApiKeyButton.disabled = false;
+        testApiKeyButton.textContent = '接続テスト';
+    }
+}
+
+// Show API key status
+function showApiKeyStatus(message, type) {
+    apiKeyStatus.textContent = message;
+    apiKeyStatus.className = `api-status ${type}`;
+    apiKeyStatus.classList.remove('hidden');
+}
+
+// Hide API key status
+function hideApiKeyStatus() {
+    apiKeyStatus.classList.add('hidden');
+}
+
 // Event listeners
 recordButton.addEventListener('click', () => {
     if (isRecording) {
@@ -429,6 +504,16 @@ settingsButton.addEventListener('click', showSettings);
 document.getElementById('saveSettings').addEventListener('click', saveSettings);
 document.getElementById('cancelSettings').addEventListener('click', hideSettings);
 document.getElementById('browseVault').addEventListener('click', browseVault);
+testApiKeyButton.addEventListener('click', testApiKey);
+
+// Enable test button when API key is entered
+openaiKeyInput.addEventListener('input', () => {
+    const hasKey = openaiKeyInput.value.trim().length > 0;
+    testApiKeyButton.disabled = !hasKey;
+    if (!hasKey) {
+        hideApiKeyStatus();
+    }
+});
 
 // Close modal when clicking outside
 settingsModal.addEventListener('click', (e) => {

@@ -363,6 +363,45 @@ footer {
     cursor: pointer;
 }
 
+.test-button {
+    margin-left: 10px !important;
+    margin-top: 0 !important;
+    background: #27ae60 !important;
+    font-size: 0.9rem;
+    padding: 6px 12px !important;
+}
+
+.test-button:disabled {
+    background: #bdc3c7 !important;
+    cursor: not-allowed !important;
+}
+
+.api-status {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.api-status.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.api-status.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.api-status.testing {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
 .modal-actions {
     display: flex;
     gap: 15px;

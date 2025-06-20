@@ -529,9 +529,9 @@ function showSetupWizard(message = null) {
   
   // Add welcome message if provided
   if (message) {
-    const existingMessage = settingsModal.querySelector('.setup-message');
-    if (existingMessage) {
-      existingMessage.remove();
+    const setupMessageElement = settingsModal.querySelector('.setup-message');
+    if (setupMessageElement && setupMessageElement.remove) {
+      setupMessageElement.remove();
     }
     
     const messageDiv = document.createElement('div');
@@ -541,9 +541,9 @@ function showSetupWizard(message = null) {
     modalContent.insertAdjacentElement('afterend', messageDiv);
   } else {
     // Add welcome instructions
-    const existingMessage = settingsModal.querySelector('.setup-message');
-    if (existingMessage) {
-      existingMessage.remove();
+    const setupMessageElement = settingsModal.querySelector('.setup-message');
+    if (setupMessageElement && setupMessageElement.remove) {
+      setupMessageElement.remove();
     }
     
     const messageDiv = document.createElement('div');
@@ -582,9 +582,9 @@ function hideSettings() {
   modalContent.textContent = '設定';
   
   // Remove any setup messages
-  const existingMessage = settingsModal.querySelector('.setup-message');
-  if (existingMessage) {
-    existingMessage.remove();
+  const setupMessageElement = settingsModal.querySelector('.setup-message');
+  if (setupMessageElement && setupMessageElement.remove) {
+    setupMessageElement.remove();
   }
   
   // Reset cancel button text

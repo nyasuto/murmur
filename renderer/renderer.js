@@ -2,6 +2,8 @@
 const recordButton = document.getElementById('recordButton');
 const recordingIndicator = document.getElementById('recordingIndicator');
 const recordingTime = document.getElementById('recordingTime');
+const volumeMeter = document.getElementById('volumeMeter');
+const volumeLevel = document.getElementById('volumeLevel');
 const audioPreview = document.getElementById('audioPreview');
 const processingStatus = document.getElementById('processingStatus');
 const processingText = document.getElementById('processingText');
@@ -21,6 +23,10 @@ let mediaRecorder = null;
 let audioChunks = [];
 let recordingStartTime = null;
 let recordingTimer = null;
+let volumeTimer = null;
+let audioContext = null;
+let analyser = null;
+let microphone = null;
 let currentAudioBlob = null;
 let transcribedText = '';
 let formattedContent = '';
@@ -44,17 +50,37 @@ async function initializeApp() {
 // Request microphone permission and setup MediaRecorder
 async function setupMediaRecorder() {
     try {
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('このブラウザは音声録音をサポートしていません。');
+        }
+        
         const stream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
                 noiseSuppression: true,
-                sampleRate: 44100
+                autoGainControl: true,
+                sampleRate: 44100,
+                channelCount: 1
             } 
         });
         
-        mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
+        // Check MediaRecorder support and find best format
+        let mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                mimeType = 'audio/mp4';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = ''; // Use default
+                }
+            }
+        }
+        
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+        
+        // Setup audio analysis for volume meter
+        setupVolumeAnalysis(stream);
         
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -62,7 +88,7 @@ async function setupMediaRecorder() {
             }
         };
         
-        mediaRecorder.onstop = () => {
+        mediaRecorder.onstop = async () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             currentAudioBlob = audioBlob;
             
@@ -70,6 +96,9 @@ async function setupMediaRecorder() {
             const audioUrl = URL.createObjectURL(audioBlob);
             audioPreview.src = audioUrl;
             audioPreview.style.display = 'block';
+            
+            // Save audio file to temp directory
+            await saveAudioRecording(audioBlob);
             
             // Reset recording state
             audioChunks = [];
@@ -79,12 +108,71 @@ async function setupMediaRecorder() {
             processAudio(audioBlob);
         };
         
+        mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event.error);
+            alert('録音中にエラーが発生しました: ' + event.error.message);
+            updateRecordingUI(false);
+            stopRecordingTimer();
+        };
+        
         return true;
     } catch (error) {
         console.error('Failed to setup media recorder:', error);
         alert('マイクへのアクセスが必要です。ブラウザの設定を確認してください。');
         return false;
     }
+}
+
+// Setup volume analysis for visual feedback
+function setupVolumeAnalysis(stream) {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(stream);
+        
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        
+        microphone.connect(analyser);
+        
+        console.log('Volume analysis setup complete');
+    } catch (error) {
+        console.error('Failed to setup volume analysis:', error);
+    }
+}
+
+// Start volume monitoring
+function startVolumeMonitoring() {
+    if (!analyser) return;
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    volumeTimer = setInterval(() => {
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        
+        // Update volume meter (0-100%)
+        const volumePercent = Math.min((average / 128) * 100, 100);
+        volumeLevel.style.width = volumePercent + '%';
+    }, 100);
+}
+
+// Stop volume monitoring
+function stopVolumeMonitoring() {
+    if (volumeTimer) {
+        clearInterval(volumeTimer);
+        volumeTimer = null;
+    }
+    
+    // Reset volume meter
+    volumeLevel.style.width = '0%';
 }
 
 // Start recording
@@ -122,11 +210,15 @@ function updateRecordingUI(recording) {
         recordButton.innerHTML = '<span class="record-icon">⏹️</span><span class="record-text">録音停止</span>';
         recordingIndicator.classList.remove('hidden');
         recordingTime.classList.remove('hidden');
+        volumeMeter.classList.remove('hidden');
+        startVolumeMonitoring();
     } else {
         recordButton.classList.remove('recording');
         recordButton.innerHTML = '<span class="record-icon">🎙️</span><span class="record-text">録音開始</span>';
         recordingIndicator.classList.add('hidden');
         recordingTime.classList.add('hidden');
+        volumeMeter.classList.add('hidden');
+        stopVolumeMonitoring();
     }
 }
 
@@ -147,6 +239,26 @@ function stopRecordingTimer() {
     if (recordingTimer) {
         clearInterval(recordingTimer);
         recordingTimer = null;
+    }
+}
+
+// Save audio recording to temp directory
+async function saveAudioRecording(audioBlob) {
+    try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = new Uint8Array(arrayBuffer);
+        const fileName = `recording-${Date.now()}.webm`;
+        
+        const result = await window.electronAPI.saveAudioRecording(audioBuffer, fileName);
+        if (result.success) {
+            console.log('Audio saved to:', result.filePath);
+        } else {
+            console.error('Failed to save audio:', result.error);
+        }
+        return result;
+    } catch (error) {
+        console.error('Error saving audio recording:', error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -230,7 +342,7 @@ async function saveToObsidian() {
 }
 
 // Clear all content
-function clearContent() {
+async function clearContent() {
     hideResults();
     transcribedText = '';
     formattedContent = '';
@@ -239,6 +351,13 @@ function clearContent() {
     // Stop any ongoing recording
     if (isRecording) {
         stopRecording();
+    }
+    
+    // Cleanup audio recording files
+    try {
+        await window.electronAPI.cleanupAudioRecording();
+    } catch (error) {
+        console.error('Failed to cleanup audio recordings:', error);
     }
 }
 

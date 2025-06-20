@@ -88,8 +88,9 @@ main {
 }
 
 .record-button.recording {
-    background: linear-gradient(45deg, #27ae60, #2ecc71);
+    background: linear-gradient(45deg, #e74c3c, #c0392b);
     animation: pulse 2s infinite;
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
 }
 
 @keyframes pulse {
@@ -130,6 +131,35 @@ main {
 .recording-time {
     font-family: 'Courier New', monospace;
     font-size: 1.1rem;
+    color: #666;
+}
+
+.volume-meter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.volume-bar {
+    width: 100px;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.volume-level {
+    height: 100%;
+    background: linear-gradient(to right, #27ae60, #f39c12, #e74c3c);
+    width: 0%;
+    transition: width 0.1s ease;
+    border-radius: 4px;
+}
+
+.volume-label {
+    font-size: 0.8rem;
     color: #666;
 }
 

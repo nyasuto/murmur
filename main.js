@@ -1,9 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs-extra');
+const os = require('os');
 require('dotenv').config();
 
 // Keep a global reference of the window object
 let mainWindow;
+
+// Audio recording state
+let currentRecordingPath = null;
+const tempDir = path.join(os.tmpdir(), 'murmur-recordings');
 
 function createWindow() {
   // Create the browser window
@@ -33,8 +39,20 @@ function createWindow() {
   });
 }
 
+// Initialize temp directory
+async function initializeTempDir() {
+  try {
+    await fs.ensureDir(tempDir);
+  } catch (error) {
+    console.error('Failed to create temp directory:', error);
+  }
+}
+
 // App event handlers
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await initializeTempDir();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   // On macOS, keep app running even when all windows are closed
@@ -62,6 +80,36 @@ ipcMain.handle('show-save-dialog', async () => {
     properties: ['openDirectory']
   });
   return result;
+});
+
+// Audio recording handlers
+ipcMain.handle('save-audio-recording', async (event, audioBuffer, fileName) => {
+  try {
+    const filePath = path.join(tempDir, fileName);
+    await fs.writeFile(filePath, Buffer.from(audioBuffer));
+    currentRecordingPath = filePath;
+    return { success: true, filePath };
+  } catch (error) {
+    console.error('Failed to save audio recording:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-audio-recording-path', () => {
+  return currentRecordingPath;
+});
+
+ipcMain.handle('cleanup-audio-recording', async () => {
+  try {
+    if (currentRecordingPath && await fs.pathExists(currentRecordingPath)) {
+      await fs.remove(currentRecordingPath);
+    }
+    currentRecordingPath = null;
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to cleanup audio recording:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Prevent navigation away from the app

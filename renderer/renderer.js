@@ -627,10 +627,12 @@ async function saveSettings() {
       hideSettings();
     } else {
       alert(`設定の保存に失敗しました: ${result.error}`);
+      // 失敗時もモーダルは開いたままにして、ユーザーが修正できるようにする
     }
   } catch (error) {
     console.error('Failed to save settings:', error);
     alert('設定の保存に失敗しました。');
+    // エラー時もモーダルは開いたままにして、ユーザーが修正できるようにする
   }
 }
 

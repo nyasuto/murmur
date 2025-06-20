@@ -14,9 +14,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAudioRecordingPath: () => ipcRenderer.invoke('get-audio-recording-path'),
   cleanupAudioRecording: () => ipcRenderer.invoke('cleanup-audio-recording'),
   
-  // OpenAI API calls (to be implemented)
-  transcribeAudio: (audioData) => ipcRenderer.invoke('transcribe-audio', audioData),
-  formatText: (text) => ipcRenderer.invoke('format-text', text),
+  // OpenAI API calls
+  transcribeAudio: (options) => ipcRenderer.invoke('transcribe-audio', options),
+  formatText: (text, options) => ipcRenderer.invoke('format-text', text, options),
+  testOpenAIConnection: () => ipcRenderer.invoke('test-openai-connection'),
+  updateOpenAIKey: (apiKey) => ipcRenderer.invoke('update-openai-key', apiKey),
   
   // File saving (to be implemented)
   saveToObsidian: (content, fileName) => ipcRenderer.invoke('save-to-obsidian', content, fileName),

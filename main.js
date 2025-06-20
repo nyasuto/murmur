@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const os = require('os');
+const OpenAIClient = require('./src/openai-client');
 require('dotenv').config();
 
 // Keep a global reference of the window object
@@ -10,6 +11,9 @@ let mainWindow;
 // Audio recording state
 let currentRecordingPath = null;
 const tempDir = path.join(os.tmpdir(), 'murmur-recordings');
+
+// OpenAI client instance
+let openaiClient = null;
 
 function createWindow() {
   // Create the browser window
@@ -48,9 +52,21 @@ async function initializeTempDir() {
   }
 }
 
+// Initialize OpenAI client
+function initializeOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (apiKey) {
+    openaiClient = new OpenAIClient(apiKey);
+    console.log('OpenAI client initialized');
+  } else {
+    console.warn('OpenAI API key not found in environment variables');
+  }
+}
+
 // App event handlers
 app.whenReady().then(async () => {
   await initializeTempDir();
+  initializeOpenAIClient();
   createWindow();
 });
 
@@ -108,6 +124,93 @@ ipcMain.handle('cleanup-audio-recording', async () => {
     return { success: true };
   } catch (error) {
     console.error('Failed to cleanup audio recording:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// OpenAI API handlers
+ipcMain.handle('transcribe-audio', async (event, options = {}) => {
+  try {
+    if (!openaiClient) {
+      return { success: false, error: 'OpenAI client not initialized. Please check your API key.' };
+    }
+
+    if (!currentRecordingPath || !await fs.pathExists(currentRecordingPath)) {
+      return { success: false, error: 'No audio recording found' };
+    }
+
+    console.log('Transcribing audio:', currentRecordingPath);
+    const result = await openaiClient.transcribeAudio(currentRecordingPath, {
+      language: options.language || 'ja', // Default to Japanese
+      temperature: options.temperature || 0,
+      response_format: 'json'
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Audio transcription failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('format-text', async (event, text, options = {}) => {
+  try {
+    if (!openaiClient) {
+      return { success: false, error: 'OpenAI client not initialized. Please check your API key.' };
+    }
+
+    if (!text || text.trim() === '') {
+      return { success: false, error: 'No text to format' };
+    }
+
+    console.log('Formatting text with GPT');
+    const result = await openaiClient.formatText(text, {
+      model: options.model || 'gpt-3.5-turbo',
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 2000
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Text formatting failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-openai-connection', async () => {
+  try {
+    if (!openaiClient) {
+      return { success: false, error: 'OpenAI client not initialized' };
+    }
+
+    const isConnected = await openaiClient.testConnection();
+    return { success: isConnected, connected: isConnected };
+  } catch (error) {
+    console.error('OpenAI connection test failed:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-openai-key', async (event, apiKey) => {
+  try {
+    if (!apiKey || apiKey.trim() === '') {
+      openaiClient = null;
+      return { success: false, error: 'API key is required' };
+    }
+
+    openaiClient = new OpenAIClient(apiKey.trim());
+    
+    // Test the connection
+    const isConnected = await openaiClient.testConnection();
+    if (isConnected) {
+      return { success: true, message: 'OpenAI client updated successfully' };
+    } else {
+      openaiClient = null;
+      return { success: false, error: 'Invalid API key or connection failed' };
+    }
+  } catch (error) {
+    console.error('Failed to update OpenAI key:', error);
+    openaiClient = null;
     return { success: false, error: error.message };
   }
 });

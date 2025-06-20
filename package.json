@@ -28,7 +28,7 @@
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "fs-extra": "^11.1.1",
-    "formdata-node": "^6.0.3"
+    "form-data": "^4.0.0"
   },
   "build": {
     "appId": "com.yourname.murmur",

@@ -34,4 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Environment file management
   createEnvFile: settings => ipcRenderer.invoke('create-env-file', settings),
   checkEnvFile: () => ipcRenderer.invoke('check-env-file'),
+  
+  // Logging
+  logInfo: (message, data) => ipcRenderer.invoke('log-info', message, data),
+  logWarn: (message, data) => ipcRenderer.invoke('log-warn', message, data),
+  logError: (message, error, data) => ipcRenderer.invoke('log-error', message, error, data),
+  logAction: (action, details) => ipcRenderer.invoke('log-action', action, details),
 });

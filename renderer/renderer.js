@@ -39,6 +39,8 @@ let formattedContent = '';
 // Initialize app
 async function initializeApp() {
   try {
+    await window.electronAPI.logInfo('Renderer process initializing');
+    
     // Get app version
     const version = await window.electronAPI.getAppVersion();
     versionInfo.textContent = `Version: ${version}`;
@@ -49,9 +51,9 @@ async function initializeApp() {
     // Enable record button after initialization
     recordButton.disabled = false;
 
-    console.log('App initialized successfully');
+    await window.electronAPI.logInfo('Renderer process initialized successfully', { version });
   } catch (error) {
-    console.error('Failed to initialize app:', error);
+    await window.electronAPI.logError('Failed to initialize renderer process', error);
   }
 }
 
@@ -228,29 +230,51 @@ function stopVolumeMonitoring() {
 
 // Start recording
 async function startRecording() {
-  if (!mediaRecorder) {
-    const success = await setupMediaRecorder();
-    if (!success) return;
+  try {
+    await window.electronAPI.logAction('Recording started');
+    
+    if (!mediaRecorder) {
+      const success = await setupMediaRecorder();
+      if (!success) {
+        await window.electronAPI.logWarn('Failed to setup media recorder for recording');
+        return;
+      }
+    }
+
+    // Clear previous results
+    hideResults();
+
+    audioChunks = [];
+    recordingStartTime = Date.now();
+
+    mediaRecorder.start();
+    isRecording = true;
+    updateRecordingUI(true);
+    startRecordingTimer();
+    
+    await window.electronAPI.logInfo('Audio recording started successfully');
+  } catch (error) {
+    await window.electronAPI.logError('Failed to start recording', error);
   }
-
-  // Clear previous results
-  hideResults();
-
-  audioChunks = [];
-  recordingStartTime = Date.now();
-
-  mediaRecorder.start();
-  isRecording = true;
-  updateRecordingUI(true);
-  startRecordingTimer();
 }
 
 // Stop recording
-function stopRecording() {
-  if (mediaRecorder && isRecording) {
-    mediaRecorder.stop();
-    isRecording = false;
-    stopRecordingTimer();
+async function stopRecording() {
+  try {
+    if (mediaRecorder && isRecording) {
+      await window.electronAPI.logAction('Recording stopped');
+      
+      const duration = recordingStartTime ? Date.now() - recordingStartTime : 0;
+      mediaRecorder.stop();
+      isRecording = false;
+      stopRecordingTimer();
+      
+      await window.electronAPI.logInfo('Audio recording stopped successfully', { 
+        duration: Math.round(duration / 1000) + 's' 
+      });
+    }
+  } catch (error) {
+    await window.electronAPI.logError('Failed to stop recording', error);
   }
 }
 
@@ -317,7 +341,9 @@ async function saveAudioRecording(audioBlob) {
 
 // Process audio (transcribe and format)
 async function processAudio() {
+  const processStartTime = Date.now();
   try {
+    await window.electronAPI.logInfo('Starting audio processing');
     showProcessing('音声をテキストに変換中...');
 
     // Transcribe audio using Whisper API
@@ -331,7 +357,9 @@ async function processAudio() {
     }
 
     transcribedText = transcriptionResult.text;
-    console.log('Transcription completed:', transcribedText);
+    await window.electronAPI.logInfo('Transcription completed', { 
+      textLength: transcribedText.length 
+    });
 
     // Show transcription result
     transcriptionText.textContent = transcribedText;
@@ -346,13 +374,16 @@ async function processAudio() {
     });
 
     if (!formattingResult.success) {
-      console.warn('Text formatting failed:', formattingResult.error);
+      await window.electronAPI.logWarn('Text formatting failed, using transcribed text as fallback', 
+        { error: formattingResult.error });
       // Use transcribed text as fallback
       formattedContent = transcribedText;
       alert('テキストの整形に失敗しましたが、音声認識は成功しました。');
     } else {
       formattedContent = formattingResult.formatted_text;
-      console.log('Text formatting completed');
+      await window.electronAPI.logInfo('Text formatting completed', { 
+        outputLength: formattedContent.length 
+      });
     }
 
     // Show formatted result
@@ -362,9 +393,14 @@ async function processAudio() {
     // Enable save button
     saveButton.disabled = false;
 
+    const totalDuration = Date.now() - processStartTime;
+    await window.electronAPI.logInfo('Audio processing completed', { 
+      duration: Math.round(totalDuration / 1000) + 's' 
+    });
+    
     hideProcessing();
   } catch (error) {
-    console.error('Audio processing failed:', error);
+    await window.electronAPI.logError('Audio processing failed', error);
     hideProcessing();
 
     let errorMessage = '音声処理中にエラーが発生しました。';
@@ -574,8 +610,15 @@ async function loadSettings() {
 // Save settings
 async function saveSettings() {
   try {
+    await window.electronAPI.logAction('Settings save initiated');
+    
     const obsidianPath = document.getElementById('obsidianPath').value;
     const openaiKey = document.getElementById('openaiKey').value;
+    
+    await window.electronAPI.logInfo('Validating settings before save', {
+      hasVaultPath: !!obsidianPath,
+      hasApiKey: !!openaiKey
+    });
 
     // Validate Obsidian vault if path is provided
     if (obsidianPath) {

@@ -5,6 +5,7 @@ const os = require('os');
 const OpenAIClient = require('./src/openai-client');
 const SettingsManager = require('./src/settings-manager');
 const ObsidianSaver = require('./src/obsidian-saver');
+const logger = require('./src/logger');
 require('dotenv').config();
 
 // Keep a global reference of the window object
@@ -85,15 +86,28 @@ async function initializeSettings() {
 
 // App event handlers
 app.whenReady().then(async () => {
+  // Initialize logger first
+  await logger.initialize();
+  await logger.info('Application starting', { 
+    version: app.getVersion(),
+    platform: process.platform,
+    electronVersion: process.versions.electron,
+    nodeVersion: process.versions.node
+  });
+
   await initializeTempDir();
   await initializeSettings();
   initializeOpenAIClient();
   createWindow();
+  
+  await logger.info('Application startup completed');
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  await logger.info('All windows closed', { platform: process.platform });
   // On macOS, keep app running even when all windows are closed
   if (process.platform !== 'darwin') {
+    await logger.info('Application quitting');
     app.quit();
   }
 });
@@ -121,12 +135,14 @@ ipcMain.handle('show-save-dialog', async () => {
 // Audio recording handlers
 ipcMain.handle('save-audio-recording', async (event, audioBuffer, fileName) => {
   try {
+    await logger.info('Saving audio recording', { fileName, size: audioBuffer.length });
     const filePath = path.join(tempDir, fileName);
     await fs.writeFile(filePath, Buffer.from(audioBuffer));
     currentRecordingPath = filePath;
+    await logger.info('Audio recording saved successfully', { filePath });
     return { success: true, filePath };
   } catch (error) {
-    console.error('Failed to save audio recording:', error);
+    await logger.error('Failed to save audio recording', error, { fileName });
     return { success: false, error: error.message };
   }
 });
@@ -150,49 +166,84 @@ ipcMain.handle('cleanup-audio-recording', async () => {
 
 // OpenAI API handlers
 ipcMain.handle('transcribe-audio', async (event, options = {}) => {
+  const startTime = Date.now();
   try {
+    await logger.info('Starting audio transcription', { options, audioPath: currentRecordingPath });
+    
     if (!openaiClient) {
+      await logger.warn('OpenAI client not initialized for transcription');
       return { success: false, error: 'OpenAI client not initialized. Please check your API key.' };
     }
 
     if (!currentRecordingPath || !(await fs.pathExists(currentRecordingPath))) {
+      await logger.warn('No audio recording found for transcription');
       return { success: false, error: 'No audio recording found' };
     }
 
-    console.log('Transcribing audio:', currentRecordingPath);
     const result = await openaiClient.transcribeAudio(currentRecordingPath, {
       language: options.language || 'ja', // Default to Japanese
       temperature: options.temperature || 0,
       response_format: 'json',
     });
 
+    const duration = Date.now() - startTime;
+    await logger.apiCall('OpenAI', 'transcribeAudio', duration, result.success);
+    
+    if (result.success) {
+      await logger.info('Audio transcription completed', { 
+        textLength: result.text?.length,
+        duration 
+      });
+    }
+
     return result;
   } catch (error) {
-    console.error('Audio transcription failed:', error);
+    const duration = Date.now() - startTime;
+    await logger.apiCall('OpenAI', 'transcribeAudio', duration, false, error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('format-text', async (event, text, options = {}) => {
+  const startTime = Date.now();
   try {
+    await logger.info('Starting text formatting', { 
+      textLength: text?.length,
+      model: options.model || 'gpt-3.5-turbo',
+      options 
+    });
+    
     if (!openaiClient) {
+      await logger.warn('OpenAI client not initialized for text formatting');
       return { success: false, error: 'OpenAI client not initialized. Please check your API key.' };
     }
 
     if (!text || text.trim() === '') {
+      await logger.warn('No text provided for formatting');
       return { success: false, error: 'No text to format' };
     }
 
-    console.log('Formatting text with GPT');
     const result = await openaiClient.formatText(text, {
       model: options.model || 'gpt-3.5-turbo',
       temperature: options.temperature || 0.7,
       max_tokens: options.max_tokens || 2000,
     });
 
+    const duration = Date.now() - startTime;
+    await logger.apiCall('OpenAI', 'formatText', duration, result.success);
+    
+    if (result.success) {
+      await logger.info('Text formatting completed', { 
+        inputLength: text.length,
+        outputLength: result.formatted_text?.length,
+        duration 
+      });
+    }
+
     return result;
   } catch (error) {
-    console.error('Text formatting failed:', error);
+    const duration = Date.now() - startTime;
+    await logger.apiCall('OpenAI', 'formatText', duration, false, error);
     return { success: false, error: error.message };
   }
 });
@@ -238,34 +289,54 @@ ipcMain.handle('update-openai-key', async (event, apiKey) => {
 // Settings handlers
 ipcMain.handle('get-settings', async () => {
   try {
+    await logger.info('Loading settings');
+    
     if (!settingsManager) {
+      await logger.error('Settings manager not initialized');
       return { success: false, error: 'Settings manager not initialized' };
     }
     
     const settings = await settingsManager.loadSettings();
+    await logger.info('Settings loaded successfully', { 
+      hasApiKey: !!settings.openaiApiKey,
+      hasVaultPath: !!settings.obsidianVaultPath 
+    });
     return { success: true, settings };
   } catch (error) {
-    console.error('Failed to get settings:', error);
+    await logger.error('Failed to get settings', error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('save-settings', async (event, newSettings) => {
   try {
+    await logger.info('Saving settings', { 
+      hasApiKey: !!newSettings.openaiApiKey,
+      hasVaultPath: !!newSettings.obsidianVaultPath 
+    });
+    
     if (!settingsManager) {
+      await logger.error('Settings manager not initialized for save');
       return { success: false, error: 'Settings manager not initialized' };
     }
     
     const success = await settingsManager.saveSettings(newSettings);
     
-    // Update OpenAI client if API key changed
-    if (newSettings.openaiApiKey && newSettings.openaiApiKey.trim() !== '') {
-      openaiClient = new OpenAIClient(newSettings.openaiApiKey.trim());
+    if (success) {
+      await logger.info('Settings saved successfully');
+      
+      // Update OpenAI client if API key changed
+      if (newSettings.openaiApiKey && newSettings.openaiApiKey.trim() !== '') {
+        openaiClient = new OpenAIClient(newSettings.openaiApiKey.trim());
+        await logger.info('OpenAI client updated with new API key');
+      }
+    } else {
+      await logger.warn('Settings save operation returned false');
     }
     
     return { success, message: success ? 'Settings saved successfully' : 'Failed to save settings' };
   } catch (error) {
-    console.error('Failed to save settings:', error);
+    await logger.error('Failed to save settings', error);
     return { success: false, error: error.message };
   }
 });
@@ -375,11 +446,29 @@ ipcMain.handle('check-env-file', async () => {
   try {
     const envPath = path.join(__dirname, '.env');
     const exists = await fs.pathExists(envPath);
+    await logger.info('Checking .env file', { envPath, exists });
     return { success: true, exists, path: envPath };
   } catch (error) {
-    console.error('Failed to check .env file:', error);
+    await logger.error('Failed to check .env file', error);
     return { success: false, error: error.message };
   }
+});
+
+// Logger handlers for renderer process
+ipcMain.handle('log-info', async (event, message, data) => {
+  await logger.info(`[Renderer] ${message}`, data);
+});
+
+ipcMain.handle('log-warn', async (event, message, data) => {
+  await logger.warn(`[Renderer] ${message}`, data);
+});
+
+ipcMain.handle('log-error', async (event, message, error, data) => {
+  await logger.error(`[Renderer] ${message}`, error, data);
+});
+
+ipcMain.handle('log-action', async (event, action, details) => {
+  await logger.action(action, details);
 });
 
 // Prevent navigation away from the app

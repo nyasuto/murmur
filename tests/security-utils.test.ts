@@ -1,17 +1,17 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import { 
-  validateFilePath, 
-  validateApiKey, 
-  sanitizeApiKeyForLogging, 
+import {
+  validateFilePath,
+  validateApiKey,
+  sanitizeApiKeyForLogging,
   sanitizePathForLogging,
-  RateLimiter 
+  RateLimiter,
 } from '../src/security-utils';
 
 describe('Security Utils', () => {
   describe('validateFilePath', () => {
     test('should accept valid relative paths', () => {
       const validPaths = ['./folder', 'folder/subfolder', 'file.txt'];
-      
+
       for (const path of validPaths) {
         expect(() => validateFilePath(path)).not.toThrow();
       }
@@ -19,7 +19,7 @@ describe('Security Utils', () => {
 
     test('should accept valid absolute paths', () => {
       const validPaths = ['/Users/test/folder', '/home/user/documents'];
-      
+
       for (const path of validPaths) {
         expect(() => validateFilePath(path)).not.toThrow();
       }
@@ -30,9 +30,9 @@ describe('Security Utils', () => {
         '../../../etc/passwd',
         'folder/../../../etc',
         'test/../../..',
-        '..\\..\\windows\\system32'
+        '..\\..\\windows\\system32',
       ];
-      
+
       for (const path of maliciousPaths) {
         expect(() => validateFilePath(path)).toThrow('path traversal detected');
       }
@@ -40,17 +40,17 @@ describe('Security Utils', () => {
 
     test('should reject access to system directories', () => {
       const systemPaths = ['/etc/passwd', '/usr/bin', '/sys/kernel', '/proc/version'];
-      
+
       for (const path of systemPaths) {
         expect(() => validateFilePath(path)).toThrow('access to system directory');
       }
     });
-    
+
     test('should reject unsafe /var directories but allow temp directories', () => {
       // Should reject unsafe /var paths
       expect(() => validateFilePath('/var/log')).toThrow('access to system directory');
       expect(() => validateFilePath('/var/lib')).toThrow('access to system directory');
-      
+
       // Should allow temp directories
       expect(() => validateFilePath('/var/folders/temp')).not.toThrow();
       expect(() => validateFilePath('/tmp/test')).not.toThrow();
@@ -58,7 +58,7 @@ describe('Security Utils', () => {
 
     test('should reject empty or invalid inputs', () => {
       const invalidInputs = ['', null, undefined, 123];
-      
+
       for (const input of invalidInputs) {
         expect(() => validateFilePath(input as any)).toThrow('must be a non-empty string');
       }
@@ -70,9 +70,9 @@ describe('Security Utils', () => {
       const validKeys = [
         'sk-1234567890abcdef1234567890abcdef1234567890abcdef',
         'sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        'sk-test1234567890abcdefghijklmnopqrstuvwxyz'
+        'sk-test1234567890abcdefghijklmnopqrstuvwxyz',
       ];
-      
+
       for (const key of validKeys) {
         expect(validateApiKey(key)).toBe(true);
       }
@@ -87,9 +87,9 @@ describe('Security Utils', () => {
         'sk-', // just prefix
         null,
         undefined,
-        123
+        123,
       ];
-      
+
       for (const key of invalidKeys) {
         expect(validateApiKey(key as any)).toBe(false);
       }
@@ -100,7 +100,7 @@ describe('Security Utils', () => {
     test('should sanitize valid API keys', () => {
       const apiKey = 'sk-1234567890abcdef1234567890abcdef';
       const sanitized = sanitizeApiKeyForLogging(apiKey);
-      
+
       expect(sanitized).toBe('sk-1234...');
       expect(sanitized).not.toContain('7890abcdef');
     });
@@ -116,19 +116,19 @@ describe('Security Utils', () => {
   describe('sanitizePathForLogging', () => {
     test('should replace home directory with ~', () => {
       jest.spyOn(require('os'), 'homedir').mockReturnValue('/Users/testuser');
-      
+
       const path = '/Users/testuser/Documents/vault';
       const sanitized = sanitizePathForLogging(path);
-      
+
       expect(sanitized).toBe('~/Documents/vault');
-      
+
       jest.restoreAllMocks();
     });
 
     test('should leave other paths unchanged', () => {
       const path = '/opt/applications/vault';
       const sanitized = sanitizePathForLogging(path);
-      
+
       expect(sanitized).toBe(path);
     });
 
@@ -157,7 +157,7 @@ describe('Security Utils', () => {
       rateLimiter.isAllowed();
       rateLimiter.isAllowed();
       rateLimiter.isAllowed();
-      
+
       // This should be rejected
       expect(rateLimiter.isAllowed()).toBe(false);
     });
@@ -167,12 +167,12 @@ describe('Security Utils', () => {
       rateLimiter.isAllowed();
       rateLimiter.isAllowed();
       rateLimiter.isAllowed();
-      
+
       expect(rateLimiter.isAllowed()).toBe(false);
-      
+
       // Wait for reset
       await new Promise(resolve => setTimeout(resolve, 1100));
-      
+
       expect(rateLimiter.isAllowed()).toBe(true);
     });
 
@@ -181,7 +181,7 @@ describe('Security Utils', () => {
       rateLimiter.isAllowed();
       rateLimiter.isAllowed();
       rateLimiter.isAllowed(); // This fails
-      
+
       const resetTime = rateLimiter.getTimeUntilReset();
       expect(resetTime).toBeGreaterThan(0);
       expect(resetTime).toBeLessThanOrEqual(1000);
@@ -194,7 +194,7 @@ describe('Security Utils', () => {
 
     test('should handle custom limits', () => {
       const customLimiter = new RateLimiter(1, 500);
-      
+
       expect(customLimiter.isAllowed()).toBe(true);
       expect(customLimiter.isAllowed()).toBe(false);
     });

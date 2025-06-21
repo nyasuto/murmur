@@ -41,7 +41,7 @@ let formattedContent: string = '';
 async function initializeApp(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Renderer process initializing');
-    
+
     // Get app version
     const version = await window.electronAPI.getAppVersion();
     versionInfo.textContent = `Version: ${version}`;
@@ -63,47 +63,51 @@ async function checkFirstTimeSetup(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Checking first-time setup');
     const result = await window.electronAPI.getSettings();
-    
+
     if (result.success && result.data) {
       const settings = result.data;
-      
+
       // Check if essential settings are missing
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
       const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
-      
-      await window.electronAPI.logInfo('Settings check result', { 
-        hasApiKey, 
+
+      await window.electronAPI.logInfo('Settings check result', {
+        hasApiKey,
         hasVaultPath,
         apiKeyLength: settings.openaiApiKey?.length,
-        vaultPath: settings.obsidianVaultPath 
+        vaultPath: settings.obsidianVaultPath,
       });
-      
+
       if (!hasApiKey || !hasVaultPath) {
         await window.electronAPI.logWarn('Essential settings missing, showing setup wizard');
         showSetupWizard();
         return;
       }
-      
+
       // Test OpenAI connection if API key exists
       if (hasApiKey) {
         await window.electronAPI.logInfo('Testing OpenAI connection');
         const connectionTest = await window.electronAPI.testOpenAIConnection();
         if (!connectionTest.success) {
-          await window.electronAPI.logWarn('OpenAI connection test failed', { error: connectionTest.error });
+          await window.electronAPI.logWarn('OpenAI connection test failed', {
+            error: connectionTest.error,
+          });
           showSetupWizard('OpenAI APIキーの接続に問題があります。設定を確認してください。');
           return;
         } else {
           await window.electronAPI.logInfo('OpenAI connection test passed');
         }
       }
-      
+
       // Validate Obsidian vault if path exists
       if (hasVaultPath) {
         await window.electronAPI.logInfo('Validating Obsidian vault path');
-        const validation = await window.electronAPI.validateObsidianVault(settings.obsidianVaultPath);
+        const validation = await window.electronAPI.validateObsidianVault(
+          settings.obsidianVaultPath
+        );
         if (validation.success && validation.validation && !validation.validation.valid) {
-          await window.electronAPI.logWarn('Obsidian vault validation failed', { 
-            error: validation.validation.error 
+          await window.electronAPI.logWarn('Obsidian vault validation failed', {
+            error: validation.validation.error,
           });
           showSetupWizard('Obsidian Vaultパスに問題があります。設定を確認してください。');
           return;
@@ -111,10 +115,9 @@ async function checkFirstTimeSetup(): Promise<void> {
           await window.electronAPI.logInfo('Obsidian vault validation passed');
         }
       }
-      
+
       // All checks passed, enable recording
       await window.electronAPI.logInfo('All setup checks passed, enabling recording');
-      
     } else {
       // Settings couldn't be loaded, show setup wizard
       await window.electronAPI.logWarn('Settings could not be loaded', { error: result.error });
@@ -258,7 +261,7 @@ function stopVolumeMonitoring(): void {
 async function startRecording(): Promise<void> {
   try {
     await window.electronAPI.logAction('Recording started');
-    
+
     if (!mediaRecorder) {
       const success = await setupMediaRecorder();
       if (!success) {
@@ -277,7 +280,7 @@ async function startRecording(): Promise<void> {
     isRecording = true;
     updateRecordingUI(true);
     startRecordingTimer();
-    
+
     await window.electronAPI.logInfo('Audio recording started successfully');
   } catch (error) {
     await window.electronAPI.logError('Failed to start recording', error);
@@ -289,14 +292,14 @@ async function stopRecording(): Promise<void> {
   try {
     if (mediaRecorder && isRecording) {
       await window.electronAPI.logAction('Recording stopped');
-      
+
       const duration = recordingStartTime ? Date.now() - recordingStartTime : 0;
       mediaRecorder.stop();
       isRecording = false;
       stopRecordingTimer();
-      
-      await window.electronAPI.logInfo('Audio recording stopped successfully', { 
-        duration: Math.round(duration / 1000) + 's' 
+
+      await window.electronAPI.logInfo('Audio recording stopped successfully', {
+        duration: Math.round(duration / 1000) + 's',
       });
     }
   } catch (error) {
@@ -384,8 +387,8 @@ async function processAudio(): Promise<void> {
     }
 
     transcribedText = transcriptionResult.text || '';
-    await window.electronAPI.logInfo('Transcription completed', { 
-      textLength: transcribedText.length 
+    await window.electronAPI.logInfo('Transcription completed', {
+      textLength: transcribedText.length,
     });
 
     // Show transcription result
@@ -401,15 +404,17 @@ async function processAudio(): Promise<void> {
     });
 
     if (!formattingResult.success) {
-      await window.electronAPI.logWarn('Text formatting failed, using transcribed text as fallback', 
-        { error: formattingResult.error });
+      await window.electronAPI.logWarn(
+        'Text formatting failed, using transcribed text as fallback',
+        { error: formattingResult.error }
+      );
       // Use transcribed text as fallback
       formattedContent = transcribedText;
       alert('テキストの整形に失敗しましたが、音声認識は成功しました。');
     } else {
       formattedContent = formattingResult.formatted_text || '';
-      await window.electronAPI.logInfo('Text formatting completed', { 
-        outputLength: formattedContent.length 
+      await window.electronAPI.logInfo('Text formatting completed', {
+        outputLength: formattedContent.length,
       });
     }
 
@@ -421,10 +426,10 @@ async function processAudio(): Promise<void> {
     saveButton.disabled = false;
 
     const totalDuration = Date.now() - processStartTime;
-    await window.electronAPI.logInfo('Audio processing completed', { 
-      duration: Math.round(totalDuration / 1000) + 's' 
+    await window.electronAPI.logInfo('Audio processing completed', {
+      duration: Math.round(totalDuration / 1000) + 's',
     });
-    
+
     hideProcessing();
   } catch (error) {
     await window.electronAPI.logError('Audio processing failed', error);
@@ -472,12 +477,12 @@ async function saveToObsidian(): Promise<void> {
 
   try {
     const result = await window.electronAPI.saveToObsidian(formattedContent, {
-      subfolder: 'voice-memos' // Save in a dedicated subfolder
+      subfolder: 'voice-memos', // Save in a dedicated subfolder
     });
 
     if (result.success) {
       alert(`Obsidianに保存しました：${result.fileName}`);
-      
+
       // Optionally clear content after successful save
       const shouldClear = confirm('保存が完了しました。内容をクリアしますか？');
       if (shouldClear) {
@@ -522,17 +527,18 @@ function showSetupWizard(message?: string): void {
   // Update modal title and content for setup wizard
   const modalContent = settingsModal.querySelector('.modal-content h2') as HTMLElement;
   modalContent.textContent = '🎉 Murmurへようこそ！初期設定を行います';
-  
+
   // Add welcome message if provided
   if (message) {
     const setupMessageElement = settingsModal.querySelector('.setup-message');
     if (setupMessageElement) {
       setupMessageElement.remove();
     }
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = 'setup-message';
-    messageDiv.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-bottom: 15px; border-radius: 4px; color: #856404;';
+    messageDiv.style.cssText =
+      'background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin-bottom: 15px; border-radius: 4px; color: #856404;';
     messageDiv.textContent = message;
     modalContent.insertAdjacentElement('afterend', messageDiv);
   } else {
@@ -541,10 +547,11 @@ function showSetupWizard(message?: string): void {
     if (setupMessageElement) {
       setupMessageElement.remove();
     }
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = 'setup-message';
-    messageDiv.style.cssText = 'background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 15px; border-radius: 4px; color: #0c5460;';
+    messageDiv.style.cssText =
+      'background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; margin-bottom: 15px; border-radius: 4px; color: #0c5460;';
     messageDiv.innerHTML = `
       <strong>音声ライフログを始めるために、以下の設定が必要です：</strong><br>
       <br>
@@ -555,15 +562,15 @@ function showSetupWizard(message?: string): void {
     `;
     modalContent.insertAdjacentElement('afterend', messageDiv);
   }
-  
+
   // Change cancel button to "後で設定" for setup wizard
   const cancelButton = document.getElementById('cancelSettings') as HTMLButtonElement;
   cancelButton.textContent = '後で設定';
-  
+
   // Show modal
   settingsModal.classList.remove('hidden');
   loadSettings();
-  
+
   // Disable record button until setup is complete
   if (recordButton) {
     recordButton.disabled = true;
@@ -576,20 +583,20 @@ function hideSettings(): void {
   // Reset modal content
   const modalContent = settingsModal.querySelector('.modal-content h2') as HTMLElement;
   modalContent.textContent = '設定';
-  
+
   // Remove any setup messages
   const setupMessageElement = settingsModal.querySelector('.setup-message');
   if (setupMessageElement) {
     setupMessageElement.remove();
   }
-  
+
   // Reset cancel button text
   const cancelButton = document.getElementById('cancelSettings') as HTMLButtonElement;
   cancelButton.textContent = 'キャンセル';
-  
+
   // Re-enable record button if settings are complete
   checkRecordButtonState();
-  
+
   settingsModal.classList.add('hidden');
 }
 
@@ -598,30 +605,32 @@ async function checkRecordButtonState(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Checking record button state');
     const result = await window.electronAPI.getSettings();
-    
+
     if (result.success && result.data) {
       const settings = result.data;
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
       const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
-      
-      await window.electronAPI.logInfo('Record button state check', { 
-        hasApiKey, 
-        hasVaultPath, 
+
+      await window.electronAPI.logInfo('Record button state check', {
+        hasApiKey,
+        hasVaultPath,
         buttonExists: !!recordButton,
-        currentlyDisabled: recordButton?.disabled 
+        currentlyDisabled: recordButton?.disabled,
       });
-      
+
       if (hasApiKey && hasVaultPath && recordButton) {
         recordButton.disabled = false;
         recordButton.title = '';
         await window.electronAPI.logInfo('Record button enabled');
       } else {
-        await window.electronAPI.logWarn('Record button not enabled', { 
-          reason: !hasApiKey ? 'No API key' : !hasVaultPath ? 'No vault path' : 'Button not found' 
+        await window.electronAPI.logWarn('Record button not enabled', {
+          reason: !hasApiKey ? 'No API key' : !hasVaultPath ? 'No vault path' : 'Button not found',
         });
       }
     } else {
-      await window.electronAPI.logWarn('Failed to get settings for button state check', { error: result.error });
+      await window.electronAPI.logWarn('Failed to get settings for button state check', {
+        error: result.error,
+      });
     }
   } catch (error) {
     await window.electronAPI.logError('Failed to check record button state', error);
@@ -634,8 +643,10 @@ async function loadSettings(): Promise<void> {
     const result = await window.electronAPI.getSettings();
     if (result.success && result.data) {
       const settings = result.data;
-      (document.getElementById('obsidianPath') as HTMLInputElement).value = settings.obsidianVaultPath || '';
-      (document.getElementById('openaiKey') as HTMLInputElement).value = settings.openaiApiKey || '';
+      (document.getElementById('obsidianPath') as HTMLInputElement).value =
+        settings.obsidianVaultPath || '';
+      (document.getElementById('openaiKey') as HTMLInputElement).value =
+        settings.openaiApiKey || '';
     } else {
       console.error('Failed to load settings:', result.error);
     }
@@ -648,13 +659,13 @@ async function loadSettings(): Promise<void> {
 async function saveSettings(): Promise<void> {
   try {
     await window.electronAPI.logAction('Settings save initiated');
-    
+
     const obsidianPath = (document.getElementById('obsidianPath') as HTMLInputElement).value;
     const openaiKey = (document.getElementById('openaiKey') as HTMLInputElement).value;
-    
+
     await window.electronAPI.logInfo('Validating settings before save', {
       hasVaultPath: !!obsidianPath,
-      hasApiKey: !!openaiKey
+      hasApiKey: !!openaiKey,
     });
 
     // Validate Obsidian vault if path is provided
@@ -664,7 +675,7 @@ async function saveSettings(): Promise<void> {
         alert(`Obsidian Vault検証エラー: ${validation.validation.error}`);
         return;
       }
-      
+
       if (validation.success && validation.validation && validation.validation.warning) {
         const proceed = confirm(`警告: ${validation.validation.warning}\n\n続行しますか？`);
         if (!proceed) return;
@@ -677,17 +688,17 @@ async function saveSettings(): Promise<void> {
     };
 
     const result = await window.electronAPI.saveSettings(settings);
-    
+
     if (result.success) {
       // Check if this was a first-time setup completion
       const isSetupWizard = settingsModal.querySelector('.setup-message') !== null;
-      
+
       if (isSetupWizard) {
         alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
       } else {
         alert('設定を保存しました。');
       }
-      
+
       hideSettings();
     } else {
       alert(`設定の保存に失敗しました: ${result.error}`);
@@ -707,7 +718,7 @@ async function browseVault(): Promise<void> {
     if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
       const selectedPath = result.filePaths[0];
       (document.getElementById('obsidianPath') as HTMLInputElement).value = selectedPath;
-      
+
       // Automatically validate the selected path
       const validation = await window.electronAPI.validateObsidianVault(selectedPath);
       if (validation.success && validation.validation) {

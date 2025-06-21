@@ -14,26 +14,29 @@ export function validateFilePath(inputPath: string): string {
 
   // Normalize the path to resolve any relative components
   const normalized = path.normalize(inputPath);
-  
+
   // Check for path traversal attempts
   if (normalized.includes('../') || normalized.includes('..\\')) {
     throw new Error('Invalid path: path traversal detected');
   }
-  
+
   // Check for absolute paths that could access system directories
   if (path.isAbsolute(normalized)) {
     // Allow absolute paths but validate they're not accessing sensitive system directories
     const forbiddenPaths = ['/etc', '/usr', '/var', '/sys', '/proc', '/boot', '/dev'];
     const lowerPath = normalized.toLowerCase();
-    
+
     // Allow /var/folders (macOS temp directories) and /tmp for testing
     const allowedVarPaths = ['/var/folders/', '/var/tmp/'];
-    const isAllowedVarPath = allowedVarPaths.some(allowed => 
+    const isAllowedVarPath = allowedVarPaths.some(allowed =>
       lowerPath.startsWith(allowed.toLowerCase())
     );
-    
+
     for (const forbidden of forbiddenPaths) {
-      if (lowerPath.startsWith(forbidden.toLowerCase() + path.sep) || lowerPath === forbidden.toLowerCase()) {
+      if (
+        lowerPath.startsWith(forbidden.toLowerCase() + path.sep) ||
+        lowerPath === forbidden.toLowerCase()
+      ) {
         // Special handling for /var directory
         if (forbidden === '/var') {
           // Only allow specific temp directories in /var
@@ -49,7 +52,7 @@ export function validateFilePath(inputPath: string): string {
       }
     }
   }
-  
+
   return normalized;
 }
 
@@ -60,7 +63,7 @@ export function validateApiKey(apiKey: string): boolean {
   if (!apiKey || typeof apiKey !== 'string') {
     return false;
   }
-  
+
   // OpenAI API keys should start with "sk-" and be at least 20 characters
   return apiKey.startsWith('sk-') && apiKey.length >= 20;
 }
@@ -72,11 +75,11 @@ export function sanitizeApiKeyForLogging(apiKey: string): string {
   if (!apiKey || typeof apiKey !== 'string') {
     return 'none';
   }
-  
+
   if (apiKey.length < 10) {
     return 'invalid';
   }
-  
+
   return apiKey.substring(0, 7) + '...';
 }
 
@@ -87,13 +90,13 @@ export function sanitizePathForLogging(filePath: string): string {
   if (!filePath || typeof filePath !== 'string') {
     return 'none';
   }
-  
+
   // Replace home directory with ~
   const homeDir = require('os').homedir();
   if (filePath.startsWith(homeDir)) {
     return filePath.replace(homeDir, '~');
   }
-  
+
   return filePath;
 }
 
@@ -104,30 +107,30 @@ export class RateLimiter {
   private calls: number[] = [];
   private readonly maxCalls: number;
   private readonly windowMs: number;
-  
+
   constructor(maxCalls: number = 10, windowMs: number = 60000) {
     this.maxCalls = maxCalls;
     this.windowMs = windowMs;
   }
-  
+
   /**
    * Check if call is allowed under rate limit
    */
   isAllowed(): boolean {
     const now = Date.now();
-    
+
     // Remove calls outside the window
     this.calls = this.calls.filter(timestamp => now - timestamp < this.windowMs);
-    
+
     // Check if we're under the limit
     if (this.calls.length < this.maxCalls) {
       this.calls.push(now);
       return true;
     }
-    
+
     return false;
   }
-  
+
   /**
    * Get time until next call is allowed (in ms)
    */
@@ -135,7 +138,7 @@ export class RateLimiter {
     if (this.calls.length === 0) {
       return 0;
     }
-    
+
     const oldestCall = Math.min(...this.calls);
     const resetTime = oldestCall + this.windowMs;
     return Math.max(0, resetTime - Date.now());

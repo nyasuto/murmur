@@ -38,6 +38,9 @@ logs
 .tmp/
 .temp/
 
+# Test coverage reports
+coverage/
+
 # IDE
 .vscode/
 .idea/

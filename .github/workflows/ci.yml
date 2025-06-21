@@ -120,7 +120,7 @@ jobs:
     - name: Secret scanning (basic)
       run: |
         echo "🔍 Basic secret scanning"
-        ! grep -r -i "api.key\|password\|secret\|token" --include="*.js" --include="*.ts" --include="*.json" . || (echo "⚠️  Potential secrets detected" && exit 1)
+        ! grep -r -i "api.key\|password\|secret\|token" --include="*.js" --include="*.ts" --include="*.json" --exclude-dir=node_modules . || (echo "⚠️  Potential secrets detected" && exit 1)
 
   # マルチプラットフォームビルドテスト
   build-test:

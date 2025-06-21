@@ -308,7 +308,7 @@ ${text}
   getCacheStats(): {
     transcription: ReturnType<typeof transcriptionCache.getStats>;
     formatting: ReturnType<typeof formattingCache.getStats>;
-    } {
+  } {
     return {
       transcription: transcriptionCache.getStats(),
       formatting: formattingCache.getStats(),

@@ -146,14 +146,23 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Commit Types:** feat, fix, docs, style, refactor, test, chore, ci
 
+### 🚨 CRITICAL RULE: Pre-Commit Quality Checks
+
+**MANDATORY: Run `make quality` before ANY commit - this is a HIGH PRIORITY rule.**
+
+- **NO exceptions** - every commit must pass quality checks
+- Fix all ESLint errors and Prettier formatting issues
+- Use `make quality-fix` for auto-fixable issues
+- Only commit when `make quality` passes completely
+
 ### Required Development Workflow
 
 1. Create feature branch from main
 2. Make changes
-3. **Run quality checks before commit:**
-   - `make quality` (comprehensive checks)
-   - OR `make quality-fix` (auto-fix + check)
-4. Commit only after all checks pass
+3. **🚨 CRITICAL: Run `make quality` before commit** (HIGH PRIORITY RULE)
+   - `make quality` (comprehensive checks) - MUST PASS
+   - OR `make quality-fix` (auto-fix + check) then verify with `make quality`
+4. Commit only after ALL quality checks pass
 5. Push branch to remote
 6. Create Pull Request with descriptive title and body
 7. Wait for CI checks to pass

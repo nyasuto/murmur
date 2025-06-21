@@ -7,12 +7,14 @@ This document tracks the progress of migrating Murmur from JavaScript to TypeScr
 ### ✅ Phase 1: Infrastructure Setup (Completed)
 
 1. **TypeScript Environment**
+
    - ✅ TypeScript and dependencies installed
    - ✅ `tsconfig.json` configured with incremental migration settings
    - ✅ Package.json scripts updated for TypeScript
    - ✅ Makefile updated to include TypeScript type checking
 
 2. **Type Definitions Created**
+
    - ✅ `src/types/index.ts` - Core application types
    - ✅ `src/types/ipc.ts` - IPC communication types
    - ✅ Global window interface declarations
@@ -28,11 +30,13 @@ This document tracks the progress of migrating Murmur from JavaScript to TypeScr
 The following files are ready for TypeScript migration:
 
 #### Priority 1 (Core Logic)
+
 - [ ] `main.js` → `main.ts`
 - [ ] `preload.js` → `preload.ts`
 - [ ] `renderer/renderer.js` → `renderer/renderer.ts`
 
 #### Priority 2 (Service Layer)
+
 - [ ] `src/settings-manager.js` → `src/settings-manager.ts`
 - [ ] `src/openai-client.js` → `src/openai-client.ts`
 - [ ] `src/obsidian-saver.js` → `src/obsidian-saver.ts`
@@ -70,6 +74,7 @@ make quality
 ### 🔄 Migration Strategy
 
 The migration uses a gradual approach:
+
 - `allowJs: true` - Existing JS files continue to work
 - `strict: false` - Gradual strictness enforcement
 - Incremental file conversion preserves functionality

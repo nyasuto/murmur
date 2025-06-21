@@ -28,15 +28,6 @@
       "@types/*": ["src/types/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "renderer/**/*",
-    "main.ts",
-    "preload.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build"
-  ]
+  "include": ["src/**/*", "renderer/**/*", "main.ts", "preload.ts"],
+  "exclude": ["node_modules", "dist", "build"]
 }

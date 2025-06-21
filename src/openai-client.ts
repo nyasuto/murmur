@@ -1,9 +1,63 @@
-const axios = require('axios');
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 const FormData = require('form-data');
-const fs = require('fs-extra');
+import * as fs from 'fs-extra';
+import { TranscriptionOptions, TranscriptionResult } from './types';
+
+interface OpenAITranscriptionResponse {
+  text: string;
+  language?: string;
+  duration?: number;
+}
+
+interface OpenAIError {
+  error?: {
+    message: string;
+  };
+}
+
+interface OpenAIUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
+interface OpenAIMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+interface OpenAICompletionResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+  usage: OpenAIUsage;
+  model: string;
+}
+
+interface FormatTextOptions {
+  prompt?: string;
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+}
+
+interface FormatTextResult {
+  success: boolean;
+  formatted_text?: string;
+  usage?: OpenAIUsage;
+  model?: string;
+  error?: string;
+  details?: any;
+}
 
 class OpenAIClient {
-  constructor(apiKey) {
+  private readonly apiKey: string;
+  private readonly baseURL: string;
+  private readonly client: AxiosInstance;
+
+  constructor(apiKey: string) {
     this.apiKey = apiKey;
     this.baseURL = 'https://api.openai.com/v1';
 
@@ -19,11 +73,8 @@ class OpenAIClient {
 
   /**
    * Transcribe audio using Whisper API
-   * @param {string} audioFilePath - Path to the audio file
-   * @param {Object} options - Transcription options
-   * @returns {Promise<Object>} Transcription result
    */
-  async transcribeAudio(audioFilePath, options = {}) {
+  async transcribeAudio(audioFilePath: string, options: TranscriptionOptions = {}): Promise<TranscriptionResult> {
     try {
       if (!(await fs.pathExists(audioFilePath))) {
         throw new Error(`Audio file not found: ${audioFilePath}`);
@@ -31,14 +82,10 @@ class OpenAIClient {
 
       const formData = new FormData();
       formData.append('file', fs.createReadStream(audioFilePath));
-      formData.append('model', options.model || 'whisper-1');
+      formData.append('model', 'whisper-1');
 
       if (options.language) {
         formData.append('language', options.language);
-      }
-
-      if (options.prompt) {
-        formData.append('prompt', options.prompt);
       }
 
       if (options.response_format) {
@@ -51,26 +98,29 @@ class OpenAIClient {
         formData.append('temperature', options.temperature.toString());
       }
 
-      const response = await this.client.post('/audio/transcriptions', formData, {
-        headers: {
-          ...formData.getHeaders(),
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response: AxiosResponse<OpenAITranscriptionResponse> = await this.client.post(
+        '/audio/transcriptions', 
+        formData, 
+        {
+          headers: {
+            ...formData.getHeaders(),
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
 
       return {
         success: true,
         text: response.data.text,
-        language: response.data.language,
         duration: response.data.duration,
-        raw: response.data,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Whisper API transcription failed:', error);
 
       let errorMessage = 'Unknown error occurred';
       if (error.response) {
-        errorMessage = error.response.data?.error?.message || `HTTP ${error.response.status}`;
+        const errorData = error.response.data as OpenAIError;
+        errorMessage = errorData.error?.message || `HTTP ${error.response.status}`;
       } else if (error.code === 'ENOTFOUND') {
         errorMessage = 'Network connection failed';
       } else if (error.code === 'ETIMEDOUT') {
@@ -82,22 +132,16 @@ class OpenAIClient {
       return {
         success: false,
         error: errorMessage,
-        details: error.response?.data,
       };
     }
   }
 
   /**
    * Format text using GPT API
-   * @param {string} text - Text to format
-   * @param {Object} options - Formatting options
-   * @returns {Promise<Object>} Formatted text result
    */
-  async formatText(text, options = {}) {
+  async formatText(text: string, options: FormatTextOptions = {}): Promise<FormatTextResult> {
     try {
-      const prompt =
-        options.prompt ||
-        `
+      const prompt = options.prompt || `
 以下の音声テキストを読みやすく整形し、構造化してください。
 要約、メインポイント、関連タグを含めてMarkdown形式で出力してください。
 
@@ -123,14 +167,16 @@ ${text}
 記録日時: ${new Date().toLocaleString('ja-JP')}
 `;
 
-      const response = await this.client.post('/chat/completions', {
+      const messages: OpenAIMessage[] = [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ];
+
+      const response: AxiosResponse<OpenAICompletionResponse> = await this.client.post('/chat/completions', {
         model: options.model || 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
+        messages,
         temperature: options.temperature || 0.7,
         max_tokens: options.max_tokens || 2000,
       });
@@ -143,12 +189,13 @@ ${text}
         usage: response.data.usage,
         model: response.data.model,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('GPT API formatting failed:', error);
 
       let errorMessage = 'Unknown error occurred';
       if (error.response) {
-        errorMessage = error.response.data?.error?.message || `HTTP ${error.response.status}`;
+        const errorData = error.response.data as OpenAIError;
+        errorMessage = errorData.error?.message || `HTTP ${error.response.status}`;
       } else if (error.code === 'ENOTFOUND') {
         errorMessage = 'Network connection failed';
       } else if (error.code === 'ETIMEDOUT') {
@@ -167,9 +214,8 @@ ${text}
 
   /**
    * Test API connection
-   * @returns {Promise<boolean>} Connection status
    */
-  async testConnection() {
+  async testConnection(): Promise<boolean> {
     try {
       const response = await this.client.get('/models');
       return response.status === 200;
@@ -180,4 +226,4 @@ ${text}
   }
 }
 
-module.exports = OpenAIClient;
+export default OpenAIClient;

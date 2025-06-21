@@ -1,8 +1,29 @@
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import * as os from 'os';
+import { Settings, ValidationResult, APIResponse } from './types';
+
+interface LegacyConfig {
+  obsidian_vault_path?: string;
+  openai_api_key?: string;
+  file_naming_pattern?: string;
+  whisper_language?: string;
+  primary_language?: string;
+  openai_model?: string;
+  openai_temperature?: number;
+  auto_save_enabled?: boolean;
+}
+
+interface FilenameOptions {
+  format?: string;
+  title?: string;
+}
 
 class SettingsManager {
+  private readonly settingsDir: string;
+  private readonly settingsFile: string;
+  private readonly defaultSettings: Settings;
+
   constructor() {
     this.settingsDir = path.join(os.homedir(), '.murmur');
     this.settingsFile = path.join(this.settingsDir, 'settings.json');
@@ -20,7 +41,7 @@ class SettingsManager {
   /**
    * Initialize settings directory
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     try {
       console.log('Initializing settings manager...');
       await fs.ensureDir(this.settingsDir);
@@ -55,12 +76,12 @@ class SettingsManager {
   /**
    * Migrate legacy config.json to new settings.json format
    */
-  async migrateLegacyConfig() {
+  async migrateLegacyConfig(): Promise<Settings> {
     try {
       const legacyConfigPath = path.join(this.settingsDir, 'config.json');
       console.log('Reading legacy config from:', legacyConfigPath);
       
-      const legacyData = await fs.readJson(legacyConfigPath);
+      const legacyData: LegacyConfig = await fs.readJson(legacyConfigPath);
       console.log('Legacy config loaded:', {
         hasApiKey: !!legacyData.openai_api_key,
         hasVaultPath: !!legacyData.obsidian_vault_path,
@@ -68,12 +89,12 @@ class SettingsManager {
       });
       
       // Map legacy fields to new settings format
-      const migratedSettings = {
+      const migratedSettings: Settings = {
         ...this.defaultSettings,
         obsidianVaultPath: legacyData.obsidian_vault_path || '',
         openaiApiKey: legacyData.openai_api_key || '',
         fileNameFormat: legacyData.file_naming_pattern || this.defaultSettings.fileNameFormat,
-        language: legacyData.whisper_language || legacyData.primary_language || 'ja',
+        language: (legacyData.whisper_language || legacyData.primary_language || 'ja') as 'ja' | 'en',
         gptModel: legacyData.openai_model || 'gpt-3.5-turbo',
         temperature: legacyData.openai_temperature || 0.7,
         autoSave: legacyData.auto_save_enabled !== undefined ? legacyData.auto_save_enabled : true
@@ -104,16 +125,15 @@ class SettingsManager {
 
   /**
    * Load settings from file
-   * @returns {Promise<Object>} Settings object
    */
-  async loadSettings() {
+  async loadSettings(): Promise<Settings> {
     try {
       await this.initialize();
       
       if (await fs.pathExists(this.settingsFile)) {
         console.log('Loading settings from:', this.settingsFile);
         const settingsData = await fs.readJson(this.settingsFile);
-        const mergedSettings = { ...this.defaultSettings, ...settingsData };
+        const mergedSettings: Settings = { ...this.defaultSettings, ...settingsData };
         
         console.log('Settings loaded successfully:', {
           hasApiKey: !!mergedSettings.openaiApiKey,
@@ -135,20 +155,18 @@ class SettingsManager {
 
   /**
    * Save settings to file
-   * @param {Object} settings - Settings to save
-   * @returns {Promise<boolean>} Success status
    */
-  async saveSettings(settings) {
+  async saveSettings(settings: Partial<Settings>): Promise<boolean> {
     try {
       await this.initialize();
       
       // Merge with existing settings
       const currentSettings = await this.loadSettings();
-      const newSettings = { ...currentSettings, ...settings };
+      const newSettings: Settings = { ...currentSettings, ...settings };
       
       // Don't save empty API keys to file for security
       if (newSettings.openaiApiKey && newSettings.openaiApiKey.trim() === '') {
-        delete newSettings.openaiApiKey;
+        delete (newSettings as any).openaiApiKey;
       }
       
       await fs.writeJson(this.settingsFile, newSettings, { spaces: 2 });
@@ -161,10 +179,8 @@ class SettingsManager {
 
   /**
    * Validate Obsidian vault path
-   * @param {string} vaultPath - Path to validate
-   * @returns {Promise<Object>} Validation result
    */
-  async validateObsidianVault(vaultPath) {
+  async validateObsidianVault(vaultPath: string): Promise<ValidationResult> {
     try {
       if (!vaultPath || vaultPath.trim() === '') {
         return { valid: false, error: 'Vault path is required' };
@@ -199,20 +215,17 @@ class SettingsManager {
       return {
         valid: true,
         path: normalizedPath,
-        isObsidianVault: hasObsidianConfig,
-        warning: hasObsidianConfig ? null : 'Directory does not appear to be an Obsidian vault'
+        warning: hasObsidianConfig ? undefined : 'Directory does not appear to be an Obsidian vault'
       };
     } catch (error) {
-      return { valid: false, error: error.message };
+      return { valid: false, error: (error as Error).message };
     }
   }
 
   /**
    * Generate filename for voice memo
-   * @param {Object} options - Filename options
-   * @returns {string} Generated filename
    */
-  generateFileName(options = {}) {
+  generateFileName(options: FilenameOptions = {}): string {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const date = new Date().toISOString().split('T')[0];
     const time = new Date().toLocaleTimeString('ja-JP', { 
@@ -240,11 +253,10 @@ class SettingsManager {
 
   /**
    * Get settings file path for debugging
-   * @returns {string} Settings file path
    */
-  getSettingsPath() {
+  getSettingsPath(): string {
     return this.settingsFile;
   }
 }
 
-module.exports = SettingsManager;
+export default SettingsManager;

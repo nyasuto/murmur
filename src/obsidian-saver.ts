@@ -1,18 +1,80 @@
-const fs = require('fs-extra');
-const path = require('path');
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import SettingsManager from './settings-manager';
+import { APIResponse, Settings, ValidationResult } from './types';
+
+interface SaveOptions {
+  fileName?: string;
+  title?: string;
+  subfolder?: string;
+  language?: string;
+}
+
+interface SaveResult {
+  success: boolean;
+  filePath?: string;
+  fileName?: string;
+  message?: string;
+  error?: string;
+}
+
+interface FileMetadata {
+  fileName: string;
+  createdAt: string;
+  vaultPath: string;
+  title?: string;
+  language?: string;
+}
+
+interface FrontMatterData {
+  created: string;
+  tags: string[];
+  type: string;
+  source: string;
+  title?: string;
+  language?: string;
+}
+
+interface VoiceMemoFile {
+  name: string;
+  path: string;
+  size: number;
+  created: Date;
+  modified: Date;
+}
+
+interface ListOptions {
+  subfolder?: string;
+}
+
+interface ListResult {
+  success: boolean;
+  files?: VoiceMemoFile[];
+  count?: number;
+  error?: string;
+}
+
+interface DeleteOptions {
+  subfolder?: string;
+}
+
+interface DeleteResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
 class ObsidianSaver {
-  constructor(settingsManager) {
+  private readonly settingsManager: SettingsManager;
+
+  constructor(settingsManager: SettingsManager) {
     this.settingsManager = settingsManager;
   }
 
   /**
    * Save formatted text to Obsidian vault
-   * @param {string} content - Formatted markdown content
-   * @param {Object} options - Save options
-   * @returns {Promise<Object>} Save result
    */
-  async saveToVault(content, options = {}) {
+  async saveToVault(content: string, options: SaveOptions = {}): Promise<SaveResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
       
@@ -39,13 +101,13 @@ class ObsidianSaver {
       });
 
       // Determine save location
-      let savePath;
+      let savePath: string;
       if (options.subfolder) {
-        const subfolderPath = path.join(validation.path, options.subfolder);
+        const subfolderPath = path.join(validation.path!, options.subfolder);
         await fs.ensureDir(subfolderPath);
         savePath = path.join(subfolderPath, fileName);
       } else {
-        savePath = path.join(validation.path, fileName);
+        savePath = path.join(validation.path!, fileName);
       }
 
       // Check if file already exists and handle duplicates
@@ -79,18 +141,15 @@ class ObsidianSaver {
       console.error('Failed to save to Obsidian vault:', error);
       return {
         success: false,
-        error: error.message
+        error: (error as Error).message
       };
     }
   }
 
   /**
    * Prepare content with metadata and formatting
-   * @param {string} content - Original content
-   * @param {Object} metadata - File metadata
-   * @returns {string} Formatted content
    */
-  prepareContent(content, metadata) {
+  private prepareContent(content: string, metadata: FileMetadata): string {
     const frontMatter = this.generateFrontMatter(metadata);
     
     // Add front matter if content doesn't already have it
@@ -103,11 +162,9 @@ class ObsidianSaver {
 
   /**
    * Generate front matter for Obsidian
-   * @param {Object} metadata - Metadata object
-   * @returns {string} Front matter string
    */
-  generateFrontMatter(metadata) {
-    const frontMatterData = {
+  private generateFrontMatter(metadata: FileMetadata): string {
+    const frontMatterData: FrontMatterData = {
       created: metadata.createdAt,
       tags: ['voice-memo', 'murmur'],
       type: 'voice-memo',
@@ -140,10 +197,8 @@ class ObsidianSaver {
 
   /**
    * List existing voice memos in vault
-   * @param {Object} options - List options
-   * @returns {Promise<Object>} List result
    */
-  async listVoiceMemos(options = {}) {
+  async listVoiceMemos(options: ListOptions = {}): Promise<ListResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
       
@@ -164,10 +219,10 @@ class ObsidianSaver {
 
       // Search for voice memo files
       const searchPath = options.subfolder ? 
-        path.join(validation.path, options.subfolder) : 
-        validation.path;
+        path.join(validation.path!, options.subfolder) : 
+        validation.path!;
 
-      const files = [];
+      const files: VoiceMemoFile[] = [];
       
       if (await fs.pathExists(searchPath)) {
         const dirEntries = await fs.readdir(searchPath, { withFileTypes: true });
@@ -193,7 +248,7 @@ class ObsidianSaver {
       }
 
       // Sort by creation date (newest first)
-      files.sort((a, b) => b.created - a.created);
+      files.sort((a, b) => b.created.getTime() - a.created.getTime());
 
       return {
         success: true,
@@ -205,18 +260,15 @@ class ObsidianSaver {
       console.error('Failed to list voice memos:', error);
       return {
         success: false,
-        error: error.message
+        error: (error as Error).message
       };
     }
   }
 
   /**
    * Delete a voice memo file
-   * @param {string} fileName - File name to delete
-   * @param {Object} options - Delete options
-   * @returns {Promise<Object>} Delete result
    */
-  async deleteVoiceMemo(fileName, options = {}) {
+  async deleteVoiceMemo(fileName: string, options: DeleteOptions = {}): Promise<DeleteResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
       
@@ -236,8 +288,8 @@ class ObsidianSaver {
       }
 
       const filePath = options.subfolder ?
-        path.join(validation.path, options.subfolder, fileName) :
-        path.join(validation.path, fileName);
+        path.join(validation.path!, options.subfolder, fileName) :
+        path.join(validation.path!, fileName);
 
       if (!(await fs.pathExists(filePath))) {
         return {
@@ -257,10 +309,10 @@ class ObsidianSaver {
       console.error('Failed to delete voice memo:', error);
       return {
         success: false,
-        error: error.message
+        error: (error as Error).message
       };
     }
   }
 }
 
-module.exports = ObsidianSaver;
+export default ObsidianSaver;

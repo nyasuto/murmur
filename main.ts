@@ -1,28 +1,48 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
-const fs = require('fs-extra');
-const os = require('os');
-const OpenAIClient = require('./src/openai-client');
-const SettingsManager = require('./src/settings-manager');
-const ObsidianSaver = require('./src/obsidian-saver');
+import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs-extra';
+import * as os from 'os';
+import OpenAIClient from './src/openai-client';
+import SettingsManager from './src/settings-manager';
+import ObsidianSaver from './src/obsidian-saver';
+import { Settings, TranscriptionOptions, APIResponse } from './src/types';
+
 const logger = require('./src/logger');
 require('dotenv').config();
 
 // Keep a global reference of the window object
-let mainWindow;
+let mainWindow: BrowserWindow | null = null;
 
 // Audio recording state
-let currentRecordingPath = null;
+let currentRecordingPath: string | null = null;
 const tempDir = path.join(os.tmpdir(), 'murmur-recordings');
 
 // OpenAI client instance
-let openaiClient = null;
+let openaiClient: OpenAIClient | null = null;
 
 // Settings and Obsidian instances
-let settingsManager = null;
-let obsidianSaver = null;
+let settingsManager: SettingsManager | null = null;
+let obsidianSaver: ObsidianSaver | null = null;
 
-function createWindow() {
+interface SaveAudioResult {
+  success: boolean;
+  filePath?: string;
+  error?: string;
+}
+
+interface CreateEnvOptions {
+  openaiApiKey?: string;
+  obsidianVaultPath?: string;
+}
+
+interface EnvFileResult {
+  success: boolean;
+  exists?: boolean;
+  path?: string;
+  error?: string;
+}
+
+function createWindow(): void {
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -51,7 +71,7 @@ function createWindow() {
 }
 
 // Initialize temp directory
-async function initializeTempDir() {
+async function initializeTempDir(): Promise<void> {
   try {
     await fs.ensureDir(tempDir);
   } catch (error) {
@@ -60,7 +80,7 @@ async function initializeTempDir() {
 }
 
 // Initialize OpenAI client
-function initializeOpenAIClient() {
+function initializeOpenAIClient(): void {
   const apiKey = process.env.OPENAI_API_KEY;
   if (apiKey) {
     openaiClient = new OpenAIClient(apiKey);
@@ -71,7 +91,7 @@ function initializeOpenAIClient() {
 }
 
 // Initialize settings and Obsidian
-async function initializeSettings() {
+async function initializeSettings(): Promise<void> {
   try {
     settingsManager = new SettingsManager();
     await settingsManager.initialize();
@@ -125,7 +145,7 @@ ipcMain.handle('get-app-version', () => {
 });
 
 ipcMain.handle('show-save-dialog', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
+  const result = await dialog.showOpenDialog(mainWindow!, {
     title: 'Obsidian Vaultのパスを選択',
     properties: ['openDirectory'],
   });
@@ -133,9 +153,9 @@ ipcMain.handle('show-save-dialog', async () => {
 });
 
 // Audio recording handlers
-ipcMain.handle('save-audio-recording', async (event, audioBuffer, fileName) => {
+ipcMain.handle('save-audio-recording', async (event: IpcMainInvokeEvent, audioBuffer: ArrayBuffer, fileName: string): Promise<SaveAudioResult> => {
   try {
-    await logger.info('Saving audio recording', { fileName, size: audioBuffer.length });
+    await logger.info('Saving audio recording', { fileName, size: audioBuffer.byteLength });
     const filePath = path.join(tempDir, fileName);
     await fs.writeFile(filePath, Buffer.from(audioBuffer));
     currentRecordingPath = filePath;
@@ -143,7 +163,7 @@ ipcMain.handle('save-audio-recording', async (event, audioBuffer, fileName) => {
     return { success: true, filePath };
   } catch (error) {
     await logger.error('Failed to save audio recording', error, { fileName });
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -151,7 +171,7 @@ ipcMain.handle('get-audio-recording-path', () => {
   return currentRecordingPath;
 });
 
-ipcMain.handle('cleanup-audio-recording', async () => {
+ipcMain.handle('cleanup-audio-recording', async (): Promise<SaveAudioResult> => {
   try {
     if (currentRecordingPath && (await fs.pathExists(currentRecordingPath))) {
       await fs.remove(currentRecordingPath);
@@ -160,12 +180,12 @@ ipcMain.handle('cleanup-audio-recording', async () => {
     return { success: true };
   } catch (error) {
     console.error('Failed to cleanup audio recording:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 // OpenAI API handlers
-ipcMain.handle('transcribe-audio', async (event, options = {}) => {
+ipcMain.handle('transcribe-audio', async (event: IpcMainInvokeEvent, options: TranscriptionOptions = {}) => {
   const startTime = Date.now();
   try {
     await logger.info('Starting audio transcription', { options, audioPath: currentRecordingPath });
@@ -200,11 +220,11 @@ ipcMain.handle('transcribe-audio', async (event, options = {}) => {
   } catch (error) {
     const duration = Date.now() - startTime;
     await logger.apiCall('OpenAI', 'transcribeAudio', duration, false, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('format-text', async (event, text, options = {}) => {
+ipcMain.handle('format-text', async (event: IpcMainInvokeEvent, text: string, options: any = {}) => {
   const startTime = Date.now();
   try {
     await logger.info('Starting text formatting', { 
@@ -244,7 +264,7 @@ ipcMain.handle('format-text', async (event, text, options = {}) => {
   } catch (error) {
     const duration = Date.now() - startTime;
     await logger.apiCall('OpenAI', 'formatText', duration, false, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
@@ -258,11 +278,11 @@ ipcMain.handle('test-openai-connection', async () => {
     return { success: isConnected, connected: isConnected };
   } catch (error) {
     console.error('OpenAI connection test failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('update-openai-key', async (event, apiKey) => {
+ipcMain.handle('update-openai-key', async (event: IpcMainInvokeEvent, apiKey: string) => {
   try {
     if (!apiKey || apiKey.trim() === '') {
       openaiClient = null;
@@ -282,12 +302,12 @@ ipcMain.handle('update-openai-key', async (event, apiKey) => {
   } catch (error) {
     console.error('Failed to update OpenAI key:', error);
     openaiClient = null;
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 // Settings handlers
-ipcMain.handle('get-settings', async () => {
+ipcMain.handle('get-settings', async (): Promise<APIResponse<Settings>> => {
   try {
     await logger.info('Loading settings');
     
@@ -301,14 +321,14 @@ ipcMain.handle('get-settings', async () => {
       hasApiKey: !!settings.openaiApiKey,
       hasVaultPath: !!settings.obsidianVaultPath 
     });
-    return { success: true, settings };
+    return { success: true, data: settings };
   } catch (error) {
     await logger.error('Failed to get settings', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('save-settings', async (event, newSettings) => {
+ipcMain.handle('save-settings', async (event: IpcMainInvokeEvent, newSettings: Partial<Settings>): Promise<APIResponse> => {
   try {
     await logger.info('Saving settings', { 
       hasApiKey: !!newSettings.openaiApiKey,
@@ -337,11 +357,11 @@ ipcMain.handle('save-settings', async (event, newSettings) => {
     return { success, message: success ? 'Settings saved successfully' : 'Failed to save settings' };
   } catch (error) {
     await logger.error('Failed to save settings', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('validate-obsidian-vault', async (event, vaultPath) => {
+ipcMain.handle('validate-obsidian-vault', async (event: IpcMainInvokeEvent, vaultPath: string) => {
   try {
     if (!settingsManager) {
       return { success: false, error: 'Settings manager not initialized' };
@@ -351,12 +371,12 @@ ipcMain.handle('validate-obsidian-vault', async (event, vaultPath) => {
     return { success: true, validation };
   } catch (error) {
     console.error('Failed to validate vault:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 // Obsidian save handlers
-ipcMain.handle('save-to-obsidian', async (event, content, options = {}) => {
+ipcMain.handle('save-to-obsidian', async (event: IpcMainInvokeEvent, content: string, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -366,11 +386,11 @@ ipcMain.handle('save-to-obsidian', async (event, content, options = {}) => {
     return result;
   } catch (error) {
     console.error('Failed to save to Obsidian:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('list-voice-memos', async (event, options = {}) => {
+ipcMain.handle('list-voice-memos', async (event: IpcMainInvokeEvent, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -380,11 +400,11 @@ ipcMain.handle('list-voice-memos', async (event, options = {}) => {
     return result;
   } catch (error) {
     console.error('Failed to list voice memos:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('delete-voice-memo', async (event, fileName, options = {}) => {
+ipcMain.handle('delete-voice-memo', async (event: IpcMainInvokeEvent, fileName: string, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -394,12 +414,12 @@ ipcMain.handle('delete-voice-memo', async (event, fileName, options = {}) => {
     return result;
   } catch (error) {
     console.error('Failed to delete voice memo:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 // Environment file management
-ipcMain.handle('create-env-file', async (event, settings) => {
+ipcMain.handle('create-env-file', async (event: IpcMainInvokeEvent, settings: CreateEnvOptions): Promise<EnvFileResult> => {
   try {
     const envPath = path.join(__dirname, '.env');
     const examplePath = path.join(__dirname, '.env.example');
@@ -438,11 +458,11 @@ NODE_ENV=development
     return { success: true, path: envPath };
   } catch (error) {
     console.error('Failed to create .env file:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('check-env-file', async () => {
+ipcMain.handle('check-env-file', async (): Promise<EnvFileResult> => {
   try {
     const envPath = path.join(__dirname, '.env');
     const exists = await fs.pathExists(envPath);
@@ -450,24 +470,24 @@ ipcMain.handle('check-env-file', async () => {
     return { success: true, exists, path: envPath };
   } catch (error) {
     await logger.error('Failed to check .env file', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 });
 
 // Logger handlers for renderer process
-ipcMain.handle('log-info', async (event, message, data) => {
+ipcMain.handle('log-info', async (event: IpcMainInvokeEvent, message: string, data?: any) => {
   await logger.info(`[Renderer] ${message}`, data);
 });
 
-ipcMain.handle('log-warn', async (event, message, data) => {
+ipcMain.handle('log-warn', async (event: IpcMainInvokeEvent, message: string, data?: any) => {
   await logger.warn(`[Renderer] ${message}`, data);
 });
 
-ipcMain.handle('log-error', async (event, message, error, data) => {
+ipcMain.handle('log-error', async (event: IpcMainInvokeEvent, message: string, error?: any, data?: any) => {
   await logger.error(`[Renderer] ${message}`, error, data);
 });
 
-ipcMain.handle('log-action', async (event, action, details) => {
+ipcMain.handle('log-action', async (event: IpcMainInvokeEvent, action: string, details?: any) => {
   await logger.action(action, details);
 });
 

@@ -1,43 +1,45 @@
+import { Settings, TranscriptionOptions, APIResponse } from '../src/types';
+
 // DOM elements
-const recordButton = document.getElementById('recordButton');
-const recordingIndicator = document.getElementById('recordingIndicator');
-const recordingTime = document.getElementById('recordingTime');
-const volumeMeter = document.getElementById('volumeMeter');
-const volumeLevel = document.getElementById('volumeLevel');
-const audioPreview = document.getElementById('audioPreview');
-const processingStatus = document.getElementById('processingStatus');
-const processingText = document.getElementById('processingText');
-const transcriptionResult = document.getElementById('transcriptionResult');
-const transcriptionText = document.getElementById('transcriptionText');
-const formattedResult = document.getElementById('formattedResult');
-const formattedText = document.getElementById('formattedText');
-const saveButton = document.getElementById('saveButton');
-const clearButton = document.getElementById('clearButton');
-const settingsButton = document.getElementById('settingsButton');
-const settingsModal = document.getElementById('settingsModal');
-const versionInfo = document.getElementById('versionInfo');
+const recordButton = document.getElementById('recordButton') as HTMLButtonElement;
+const recordingIndicator = document.getElementById('recordingIndicator') as HTMLElement;
+const recordingTime = document.getElementById('recordingTime') as HTMLElement;
+const volumeMeter = document.getElementById('volumeMeter') as HTMLElement;
+const volumeLevel = document.getElementById('volumeLevel') as HTMLElement;
+const audioPreview = document.getElementById('audioPreview') as HTMLAudioElement;
+const processingStatus = document.getElementById('processingStatus') as HTMLElement;
+const processingText = document.getElementById('processingText') as HTMLElement;
+const transcriptionResultElement = document.getElementById('transcriptionResult') as HTMLElement;
+const transcriptionText = document.getElementById('transcriptionText') as HTMLElement;
+const formattedResult = document.getElementById('formattedResult') as HTMLElement;
+const formattedText = document.getElementById('formattedText') as HTMLElement;
+const saveButton = document.getElementById('saveButton') as HTMLButtonElement;
+const clearButton = document.getElementById('clearButton') as HTMLButtonElement;
+const settingsButton = document.getElementById('settingsButton') as HTMLButtonElement;
+const settingsModal = document.getElementById('settingsModal') as HTMLElement;
+const versionInfo = document.getElementById('versionInfo') as HTMLElement;
 
 // Settings elements
-const openaiKeyInput = document.getElementById('openaiKey');
-const testApiKeyButton = document.getElementById('testApiKey');
-const apiKeyStatus = document.getElementById('apiKeyStatus');
+const openaiKeyInput = document.getElementById('openaiKey') as HTMLInputElement;
+const testApiKeyButton = document.getElementById('testApiKey') as HTMLButtonElement;
+const apiKeyStatus = document.getElementById('apiKeyStatus') as HTMLElement;
 
 // State variables
-let isRecording = false;
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingStartTime = null;
-let recordingTimer = null;
-let volumeTimer = null;
-let audioContext = null;
-let analyser = null;
-let microphone = null;
-let currentAudioBlob = null;
-let transcribedText = '';
-let formattedContent = '';
+let isRecording: boolean = false;
+let mediaRecorder: MediaRecorder | null = null;
+let audioChunks: Blob[] = [];
+let recordingStartTime: number | null = null;
+let recordingTimer: number | null = null;
+let volumeTimer: number | null = null;
+let audioContext: AudioContext | null = null;
+let analyser: AnalyserNode | null = null;
+let microphone: MediaStreamAudioSourceNode | null = null;
+let currentAudioBlob: Blob | null = null;
+let transcribedText: string = '';
+let formattedContent: string = '';
 
 // Initialize app
-async function initializeApp() {
+async function initializeApp(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Renderer process initializing');
     
@@ -58,13 +60,13 @@ async function initializeApp() {
 }
 
 // Check if first-time setup is needed
-async function checkFirstTimeSetup() {
+async function checkFirstTimeSetup(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Checking first-time setup');
     const result = await window.electronAPI.getSettings();
     
-    if (result.success) {
-      const settings = result.settings;
+    if (result.success && result.data) {
+      const settings = result.data;
       
       // Check if essential settings are missing
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
@@ -100,7 +102,7 @@ async function checkFirstTimeSetup() {
       if (hasVaultPath) {
         await window.electronAPI.logInfo('Validating Obsidian vault path');
         const validation = await window.electronAPI.validateObsidianVault(settings.obsidianVaultPath);
-        if (validation.success && !validation.validation.valid) {
+        if (validation.success && validation.validation && !validation.validation.valid) {
           await window.electronAPI.logWarn('Obsidian vault validation failed', { 
             error: validation.validation.error 
           });
@@ -126,7 +128,7 @@ async function checkFirstTimeSetup() {
 }
 
 // Request microphone permission and setup MediaRecorder
-async function setupMediaRecorder() {
+async function setupMediaRecorder(): Promise<boolean> {
   try {
     // Check if getUserMedia is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -160,7 +162,7 @@ async function setupMediaRecorder() {
     // Setup audio analysis for volume meter
     setupVolumeAnalysis(stream);
 
-    mediaRecorder.ondataavailable = event => {
+    mediaRecorder.ondataavailable = (event: BlobEvent) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
       }
@@ -186,9 +188,10 @@ async function setupMediaRecorder() {
       processAudio();
     };
 
-    mediaRecorder.onerror = event => {
-      console.error('MediaRecorder error:', event.error);
-      alert('録音中にエラーが発生しました: ' + event.error.message);
+    mediaRecorder.onerror = (event: Event) => {
+      const errorEvent = event as any;
+      console.error('MediaRecorder error:', errorEvent.error);
+      alert('録音中にエラーが発生しました: ' + errorEvent.error.message);
       updateRecordingUI(false);
       stopRecordingTimer();
     };
@@ -202,9 +205,9 @@ async function setupMediaRecorder() {
 }
 
 // Setup volume analysis for visual feedback
-function setupVolumeAnalysis(stream) {
+function setupVolumeAnalysis(stream: MediaStream): void {
   try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     analyser = audioContext.createAnalyser();
     microphone = audioContext.createMediaStreamSource(stream);
 
@@ -220,14 +223,14 @@ function setupVolumeAnalysis(stream) {
 }
 
 // Start volume monitoring
-function startVolumeMonitoring() {
+function startVolumeMonitoring(): void {
   if (!analyser) return;
 
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
 
-  volumeTimer = setInterval(() => {
-    analyser.getByteFrequencyData(dataArray);
+  volumeTimer = window.setInterval(() => {
+    analyser!.getByteFrequencyData(dataArray);
 
     // Calculate average volume
     let sum = 0;
@@ -243,7 +246,7 @@ function startVolumeMonitoring() {
 }
 
 // Stop volume monitoring
-function stopVolumeMonitoring() {
+function stopVolumeMonitoring(): void {
   if (volumeTimer) {
     clearInterval(volumeTimer);
     volumeTimer = null;
@@ -254,7 +257,7 @@ function stopVolumeMonitoring() {
 }
 
 // Start recording
-async function startRecording() {
+async function startRecording(): Promise<void> {
   try {
     await window.electronAPI.logAction('Recording started');
     
@@ -272,7 +275,7 @@ async function startRecording() {
     audioChunks = [];
     recordingStartTime = Date.now();
 
-    mediaRecorder.start();
+    mediaRecorder!.start();
     isRecording = true;
     updateRecordingUI(true);
     startRecordingTimer();
@@ -284,7 +287,7 @@ async function startRecording() {
 }
 
 // Stop recording
-async function stopRecording() {
+async function stopRecording(): Promise<void> {
   try {
     if (mediaRecorder && isRecording) {
       await window.electronAPI.logAction('Recording stopped');
@@ -304,7 +307,7 @@ async function stopRecording() {
 }
 
 // Update recording UI
-function updateRecordingUI(recording) {
+function updateRecordingUI(recording: boolean): void {
   if (recording) {
     recordButton.classList.add('recording');
     recordButton.innerHTML =
@@ -325,8 +328,8 @@ function updateRecordingUI(recording) {
 }
 
 // Start recording timer
-function startRecordingTimer() {
-  recordingTimer = setInterval(() => {
+function startRecordingTimer(): void {
+  recordingTimer = window.setInterval(() => {
     if (recordingStartTime) {
       const elapsed = Date.now() - recordingStartTime;
       const minutes = Math.floor(elapsed / 60000);
@@ -337,7 +340,7 @@ function startRecordingTimer() {
 }
 
 // Stop recording timer
-function stopRecordingTimer() {
+function stopRecordingTimer(): void {
   if (recordingTimer) {
     clearInterval(recordingTimer);
     recordingTimer = null;
@@ -345,7 +348,7 @@ function stopRecordingTimer() {
 }
 
 // Save audio recording to temp directory
-async function saveAudioRecording(audioBlob) {
+async function saveAudioRecording(audioBlob: Blob): Promise<any> {
   try {
     const arrayBuffer = await audioBlob.arrayBuffer();
     const audioBuffer = new Uint8Array(arrayBuffer);
@@ -360,35 +363,36 @@ async function saveAudioRecording(audioBlob) {
     return result;
   } catch (error) {
     console.error('Error saving audio recording:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
 // Process audio (transcribe and format)
-async function processAudio() {
+async function processAudio(): Promise<void> {
   const processStartTime = Date.now();
   try {
     await window.electronAPI.logInfo('Starting audio processing');
     showProcessing('音声をテキストに変換中...');
 
     // Transcribe audio using Whisper API
-    const transcriptionResult = await window.electronAPI.transcribeAudio({
+    const transcriptionOptions: TranscriptionOptions = {
       language: 'ja', // Japanese
       temperature: 0,
-    });
+    };
+    const transcriptionResult = await window.electronAPI.transcribeAudio(transcriptionOptions);
 
     if (!transcriptionResult.success) {
       throw new Error(transcriptionResult.error || 'Transcription failed');
     }
 
-    transcribedText = transcriptionResult.text;
+    transcribedText = transcriptionResult.text || '';
     await window.electronAPI.logInfo('Transcription completed', { 
       textLength: transcribedText.length 
     });
 
     // Show transcription result
     transcriptionText.textContent = transcribedText;
-    transcriptionResult.classList.remove('hidden');
+    transcriptionResultElement.classList.remove('hidden');
 
     // Format text using GPT API
     showProcessing('テキストを整形中...');
@@ -405,7 +409,7 @@ async function processAudio() {
       formattedContent = transcribedText;
       alert('テキストの整形に失敗しましたが、音声認識は成功しました。');
     } else {
-      formattedContent = formattingResult.formatted_text;
+      formattedContent = formattingResult.formatted_text || '';
       await window.electronAPI.logInfo('Text formatting completed', { 
         outputLength: formattedContent.length 
       });
@@ -429,11 +433,12 @@ async function processAudio() {
     hideProcessing();
 
     let errorMessage = '音声処理中にエラーが発生しました。';
-    if (error.message.includes('OpenAI client not initialized')) {
+    const errorStr = (error as Error).message;
+    if (errorStr.includes('OpenAI client not initialized')) {
       errorMessage = 'OpenAI APIキーが設定されていません。設定画面でAPIキーを入力してください。';
-    } else if (error.message.includes('No audio recording found')) {
+    } else if (errorStr.includes('No audio recording found')) {
       errorMessage = '音声ファイルが見つかりません。もう一度録音してください。';
-    } else if (error.message.includes('Network')) {
+    } else if (errorStr.includes('Network')) {
       errorMessage = 'ネットワーク接続エラーです。インターネット接続を確認してください。';
     }
 
@@ -442,26 +447,26 @@ async function processAudio() {
 }
 
 // Show processing status
-function showProcessing(message) {
+function showProcessing(message: string): void {
   processingText.textContent = message;
   processingStatus.classList.remove('hidden');
 }
 
 // Hide processing status
-function hideProcessing() {
+function hideProcessing(): void {
   processingStatus.classList.add('hidden');
 }
 
 // Hide all results
-function hideResults() {
-  transcriptionResult.classList.add('hidden');
+function hideResults(): void {
+  transcriptionResultElement.classList.add('hidden');
   formattedResult.classList.add('hidden');
   audioPreview.style.display = 'none';
   saveButton.disabled = true;
 }
 
 // Save to Obsidian
-async function saveToObsidian() {
+async function saveToObsidian(): Promise<void> {
   if (!formattedContent) {
     alert('保存するコンテンツがありません。');
     return;
@@ -471,10 +476,9 @@ async function saveToObsidian() {
     // Extract title from formatted content if possible
     const lines = formattedContent.split('\n');
     const titleLine = lines.find(line => line.startsWith('# '));
-    const title = titleLine ? titleLine.replace('# ', '').trim() : null;
+    const title = titleLine ? titleLine.replace('# ', '').trim() : undefined;
 
     const result = await window.electronAPI.saveToObsidian(formattedContent, {
-      title,
       subfolder: 'voice-memos' // Save in a dedicated subfolder
     });
 
@@ -496,7 +500,7 @@ async function saveToObsidian() {
 }
 
 // Clear all content
-async function clearContent() {
+async function clearContent(): Promise<void> {
   hideResults();
   transcribedText = '';
   formattedContent = '';
@@ -516,21 +520,21 @@ async function clearContent() {
 }
 
 // Show settings modal
-function showSettings() {
+function showSettings(): void {
   settingsModal.classList.remove('hidden');
   loadSettings();
 }
 
 // Show setup wizard (enhanced settings modal for first-time setup)
-function showSetupWizard(message = null) {
+function showSetupWizard(message?: string): void {
   // Update modal title and content for setup wizard
-  const modalContent = settingsModal.querySelector('.modal-content h2');
+  const modalContent = settingsModal.querySelector('.modal-content h2') as HTMLElement;
   modalContent.textContent = '🎉 Murmurへようこそ！初期設定を行います';
   
   // Add welcome message if provided
   if (message) {
     const setupMessageElement = settingsModal.querySelector('.setup-message');
-    if (setupMessageElement && setupMessageElement.remove) {
+    if (setupMessageElement) {
       setupMessageElement.remove();
     }
     
@@ -542,7 +546,7 @@ function showSetupWizard(message = null) {
   } else {
     // Add welcome instructions
     const setupMessageElement = settingsModal.querySelector('.setup-message');
-    if (setupMessageElement && setupMessageElement.remove) {
+    if (setupMessageElement) {
       setupMessageElement.remove();
     }
     
@@ -561,7 +565,7 @@ function showSetupWizard(message = null) {
   }
   
   // Change cancel button to "後で設定" for setup wizard
-  const cancelButton = document.getElementById('cancelSettings');
+  const cancelButton = document.getElementById('cancelSettings') as HTMLButtonElement;
   cancelButton.textContent = '後で設定';
   
   // Show modal
@@ -576,19 +580,19 @@ function showSetupWizard(message = null) {
 }
 
 // Hide settings modal
-function hideSettings() {
+function hideSettings(): void {
   // Reset modal content
-  const modalContent = settingsModal.querySelector('.modal-content h2');
+  const modalContent = settingsModal.querySelector('.modal-content h2') as HTMLElement;
   modalContent.textContent = '設定';
   
   // Remove any setup messages
   const setupMessageElement = settingsModal.querySelector('.setup-message');
-  if (setupMessageElement && setupMessageElement.remove) {
+  if (setupMessageElement) {
     setupMessageElement.remove();
   }
   
   // Reset cancel button text
-  const cancelButton = document.getElementById('cancelSettings');
+  const cancelButton = document.getElementById('cancelSettings') as HTMLButtonElement;
   cancelButton.textContent = 'キャンセル';
   
   // Re-enable record button if settings are complete
@@ -598,13 +602,13 @@ function hideSettings() {
 }
 
 // Check if record button should be enabled
-async function checkRecordButtonState() {
+async function checkRecordButtonState(): Promise<void> {
   try {
     await window.electronAPI.logInfo('Checking record button state');
     const result = await window.electronAPI.getSettings();
     
-    if (result.success) {
-      const settings = result.settings;
+    if (result.success && result.data) {
+      const settings = result.data;
       const hasApiKey = settings.openaiApiKey && settings.openaiApiKey.trim() !== '';
       const hasVaultPath = settings.obsidianVaultPath && settings.obsidianVaultPath.trim() !== '';
       
@@ -633,13 +637,13 @@ async function checkRecordButtonState() {
 }
 
 // Load settings
-async function loadSettings() {
+async function loadSettings(): Promise<void> {
   try {
     const result = await window.electronAPI.getSettings();
-    if (result.success) {
-      const settings = result.settings;
-      document.getElementById('obsidianPath').value = settings.obsidianVaultPath || '';
-      document.getElementById('openaiKey').value = settings.openaiApiKey || '';
+    if (result.success && result.data) {
+      const settings = result.data;
+      (document.getElementById('obsidianPath') as HTMLInputElement).value = settings.obsidianVaultPath || '';
+      (document.getElementById('openaiKey') as HTMLInputElement).value = settings.openaiApiKey || '';
     } else {
       console.error('Failed to load settings:', result.error);
     }
@@ -649,12 +653,12 @@ async function loadSettings() {
 }
 
 // Save settings
-async function saveSettings() {
+async function saveSettings(): Promise<void> {
   try {
     await window.electronAPI.logAction('Settings save initiated');
     
-    const obsidianPath = document.getElementById('obsidianPath').value;
-    const openaiKey = document.getElementById('openaiKey').value;
+    const obsidianPath = (document.getElementById('obsidianPath') as HTMLInputElement).value;
+    const openaiKey = (document.getElementById('openaiKey') as HTMLInputElement).value;
     
     await window.electronAPI.logInfo('Validating settings before save', {
       hasVaultPath: !!obsidianPath,
@@ -664,12 +668,12 @@ async function saveSettings() {
     // Validate Obsidian vault if path is provided
     if (obsidianPath) {
       const validation = await window.electronAPI.validateObsidianVault(obsidianPath);
-      if (validation.success && !validation.validation.valid) {
+      if (validation.success && validation.validation && !validation.validation.valid) {
         alert(`Obsidian Vault検証エラー: ${validation.validation.error}`);
         return;
       }
       
-      if (validation.success && validation.validation.warning) {
+      if (validation.success && validation.validation && validation.validation.warning) {
         const proceed = confirm(`警告: ${validation.validation.warning}\n\n続行しますか？`);
         if (!proceed) return;
       }
@@ -687,23 +691,7 @@ async function saveSettings() {
       const isSetupWizard = settingsModal.querySelector('.setup-message') !== null;
       
       if (isSetupWizard) {
-        // Offer to create .env file for easier configuration
-        const envCheck = await window.electronAPI.checkEnvFile();
-        if (envCheck.success && !envCheck.exists && (obsidianPath || openaiKey)) {
-          const createEnv = confirm('設定をより簡単に管理するため、.envファイルを作成しますか？\n\n.envファイルを作成すると、次回から自動的に設定が読み込まれます。');
-          if (createEnv) {
-            const envResult = await window.electronAPI.createEnvFile(settings);
-            if (envResult.success) {
-              alert('🎉 初期設定が完了しました！\n\n.envファイルも作成されました。これで音声ライフログの記録を開始できます。');
-            } else {
-              alert('🎉 初期設定が完了しました！\n\n.envファイルの作成に失敗しましたが、アプリは正常に動作します。');
-            }
-          } else {
-            alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
-          }
-        } else {
-          alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
-        }
+        alert('🎉 初期設定が完了しました！\n\nこれで音声ライフログの記録を開始できます。');
       } else {
         alert('設定を保存しました。');
       }
@@ -721,16 +709,16 @@ async function saveSettings() {
 }
 
 // Browse for Obsidian vault
-async function browseVault() {
+async function browseVault(): Promise<void> {
   try {
-    const result = await window.electronAPI.showSaveDialog();
+    const result = await window.electronAPI.selectObsidianVault();
     if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
       const selectedPath = result.filePaths[0];
-      document.getElementById('obsidianPath').value = selectedPath;
+      (document.getElementById('obsidianPath') as HTMLInputElement).value = selectedPath;
       
       // Automatically validate the selected path
       const validation = await window.electronAPI.validateObsidianVault(selectedPath);
-      if (validation.success) {
+      if (validation.success && validation.validation) {
         if (validation.validation.valid) {
           if (validation.validation.warning) {
             alert(`選択されたフォルダ: ${selectedPath}\n警告: ${validation.validation.warning}`);
@@ -748,7 +736,7 @@ async function browseVault() {
 }
 
 // Test OpenAI API key
-async function testApiKey() {
+async function testApiKey(): Promise<void> {
   const apiKey = openaiKeyInput.value.trim();
   if (!apiKey) {
     showApiKeyStatus('APIキーを入力してください', 'error');
@@ -760,13 +748,13 @@ async function testApiKey() {
   showApiKeyStatus('接続をテストしています...', 'testing');
 
   try {
-    // Update the OpenAI client with the new key
-    const updateResult = await window.electronAPI.updateOpenAIKey(apiKey);
+    // Test the OpenAI connection
+    const testResult = await window.electronAPI.testOpenAIConnection();
 
-    if (updateResult.success) {
+    if (testResult.success) {
       showApiKeyStatus('✅ 接続成功！APIキーは有効です', 'success');
     } else {
-      showApiKeyStatus('❌ ' + updateResult.error, 'error');
+      showApiKeyStatus('❌ ' + testResult.error, 'error');
     }
   } catch (error) {
     console.error('API key test failed:', error);
@@ -778,14 +766,14 @@ async function testApiKey() {
 }
 
 // Show API key status
-function showApiKeyStatus(message, type) {
+function showApiKeyStatus(message: string, type: string): void {
   apiKeyStatus.textContent = message;
   apiKeyStatus.className = `api-status ${type}`;
   apiKeyStatus.classList.remove('hidden');
 }
 
 // Hide API key status
-function hideApiKeyStatus() {
+function hideApiKeyStatus(): void {
   apiKeyStatus.classList.add('hidden');
 }
 
@@ -803,9 +791,9 @@ clearButton.addEventListener('click', clearContent);
 settingsButton.addEventListener('click', showSettings);
 
 // Settings modal event listeners
-document.getElementById('saveSettings').addEventListener('click', saveSettings);
-document.getElementById('cancelSettings').addEventListener('click', hideSettings);
-document.getElementById('browseVault').addEventListener('click', browseVault);
+document.getElementById('saveSettings')!.addEventListener('click', saveSettings);
+document.getElementById('cancelSettings')!.addEventListener('click', hideSettings);
+document.getElementById('browseVault')!.addEventListener('click', browseVault);
 testApiKeyButton.addEventListener('click', testApiKey);
 
 // Enable test button when API key is entered
@@ -818,16 +806,16 @@ openaiKeyInput.addEventListener('input', () => {
 });
 
 // Close modal when clicking outside
-settingsModal.addEventListener('click', e => {
+settingsModal.addEventListener('click', (e: Event) => {
   if (e.target === settingsModal) {
     hideSettings();
   }
 });
 
 // Keyboard shortcuts
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown', (e: KeyboardEvent) => {
   // Space bar to toggle recording
-  if (e.code === 'Space' && !e.target.matches('input, textarea')) {
+  if (e.code === 'Space' && !(e.target as HTMLElement).matches('input, textarea')) {
     e.preventDefault();
     if (isRecording) {
       stopRecording();

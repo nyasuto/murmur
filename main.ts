@@ -153,7 +153,7 @@ ipcMain.handle('show-save-dialog', async () => {
 });
 
 // Audio recording handlers
-ipcMain.handle('save-audio-recording', async (event: IpcMainInvokeEvent, audioBuffer: ArrayBuffer, fileName: string): Promise<SaveAudioResult> => {
+ipcMain.handle('save-audio-recording', async (_event: IpcMainInvokeEvent, audioBuffer: ArrayBuffer, fileName: string): Promise<SaveAudioResult> => {
   try {
     await logger.info('Saving audio recording', { fileName, size: audioBuffer.byteLength });
     const filePath = path.join(tempDir, fileName);
@@ -162,7 +162,7 @@ ipcMain.handle('save-audio-recording', async (event: IpcMainInvokeEvent, audioBu
     await logger.info('Audio recording saved successfully', { filePath });
     return { success: true, filePath };
   } catch (error) {
-    await logger.error('Failed to save audio recording', error, { fileName });
+    await logger.error('Failed to save audio recording', error as Error, { fileName });
     return { success: false, error: (error as Error).message };
   }
 });
@@ -185,7 +185,7 @@ ipcMain.handle('cleanup-audio-recording', async (): Promise<SaveAudioResult> => 
 });
 
 // OpenAI API handlers
-ipcMain.handle('transcribe-audio', async (event: IpcMainInvokeEvent, options: TranscriptionOptions = {}) => {
+ipcMain.handle('transcribe-audio', async (_event: IpcMainInvokeEvent, options: TranscriptionOptions = {}) => {
   const startTime = Date.now();
   try {
     await logger.info('Starting audio transcription', { options, audioPath: currentRecordingPath });
@@ -219,12 +219,12 @@ ipcMain.handle('transcribe-audio', async (event: IpcMainInvokeEvent, options: Tr
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    await logger.apiCall('OpenAI', 'transcribeAudio', duration, false, error);
+    await logger.apiCall('OpenAI', 'transcribeAudio', duration, false, error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('format-text', async (event: IpcMainInvokeEvent, text: string, options: any = {}) => {
+ipcMain.handle('format-text', async (_event: IpcMainInvokeEvent, text: string, options: any = {}) => {
   const startTime = Date.now();
   try {
     await logger.info('Starting text formatting', { 
@@ -263,7 +263,7 @@ ipcMain.handle('format-text', async (event: IpcMainInvokeEvent, text: string, op
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    await logger.apiCall('OpenAI', 'formatText', duration, false, error);
+    await logger.apiCall('OpenAI', 'formatText', duration, false, error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
@@ -282,7 +282,7 @@ ipcMain.handle('test-openai-connection', async () => {
   }
 });
 
-ipcMain.handle('update-openai-key', async (event: IpcMainInvokeEvent, apiKey: string) => {
+ipcMain.handle('update-openai-key', async (_event: IpcMainInvokeEvent, apiKey: string) => {
   try {
     if (!apiKey || apiKey.trim() === '') {
       openaiClient = null;
@@ -323,12 +323,12 @@ ipcMain.handle('get-settings', async (): Promise<APIResponse<Settings>> => {
     });
     return { success: true, data: settings };
   } catch (error) {
-    await logger.error('Failed to get settings', error);
+    await logger.error('Failed to get settings', error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('save-settings', async (event: IpcMainInvokeEvent, newSettings: Partial<Settings>): Promise<APIResponse> => {
+ipcMain.handle('save-settings', async (_event: IpcMainInvokeEvent, newSettings: Partial<Settings>): Promise<APIResponse> => {
   try {
     await logger.info('Saving settings', { 
       hasApiKey: !!newSettings.openaiApiKey,
@@ -356,12 +356,12 @@ ipcMain.handle('save-settings', async (event: IpcMainInvokeEvent, newSettings: P
     
     return { success, message: success ? 'Settings saved successfully' : 'Failed to save settings' };
   } catch (error) {
-    await logger.error('Failed to save settings', error);
+    await logger.error('Failed to save settings', error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('validate-obsidian-vault', async (event: IpcMainInvokeEvent, vaultPath: string) => {
+ipcMain.handle('validate-obsidian-vault', async (_event: IpcMainInvokeEvent, vaultPath: string) => {
   try {
     if (!settingsManager) {
       return { success: false, error: 'Settings manager not initialized' };
@@ -376,7 +376,7 @@ ipcMain.handle('validate-obsidian-vault', async (event: IpcMainInvokeEvent, vaul
 });
 
 // Obsidian save handlers
-ipcMain.handle('save-to-obsidian', async (event: IpcMainInvokeEvent, content: string, options: any = {}) => {
+ipcMain.handle('save-to-obsidian', async (_event: IpcMainInvokeEvent, content: string, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -390,7 +390,7 @@ ipcMain.handle('save-to-obsidian', async (event: IpcMainInvokeEvent, content: st
   }
 });
 
-ipcMain.handle('list-voice-memos', async (event: IpcMainInvokeEvent, options: any = {}) => {
+ipcMain.handle('list-voice-memos', async (_event: IpcMainInvokeEvent, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -404,7 +404,7 @@ ipcMain.handle('list-voice-memos', async (event: IpcMainInvokeEvent, options: an
   }
 });
 
-ipcMain.handle('delete-voice-memo', async (event: IpcMainInvokeEvent, fileName: string, options: any = {}) => {
+ipcMain.handle('delete-voice-memo', async (_event: IpcMainInvokeEvent, fileName: string, options: any = {}) => {
   try {
     if (!obsidianSaver) {
       return { success: false, error: 'Obsidian saver not initialized' };
@@ -419,7 +419,7 @@ ipcMain.handle('delete-voice-memo', async (event: IpcMainInvokeEvent, fileName: 
 });
 
 // Environment file management
-ipcMain.handle('create-env-file', async (event: IpcMainInvokeEvent, settings: CreateEnvOptions): Promise<EnvFileResult> => {
+ipcMain.handle('create-env-file', async (_event: IpcMainInvokeEvent, settings: CreateEnvOptions): Promise<EnvFileResult> => {
   try {
     const envPath = path.join(__dirname, '.env');
     const examplePath = path.join(__dirname, '.env.example');
@@ -469,30 +469,30 @@ ipcMain.handle('check-env-file', async (): Promise<EnvFileResult> => {
     await logger.info('Checking .env file', { envPath, exists });
     return { success: true, exists, path: envPath };
   } catch (error) {
-    await logger.error('Failed to check .env file', error);
+    await logger.error('Failed to check .env file', error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
 
 // Logger handlers for renderer process
-ipcMain.handle('log-info', async (event: IpcMainInvokeEvent, message: string, data?: any) => {
+ipcMain.handle('log-info', async (_event: IpcMainInvokeEvent, message: string, data?: any) => {
   await logger.info(`[Renderer] ${message}`, data);
 });
 
-ipcMain.handle('log-warn', async (event: IpcMainInvokeEvent, message: string, data?: any) => {
+ipcMain.handle('log-warn', async (_event: IpcMainInvokeEvent, message: string, data?: any) => {
   await logger.warn(`[Renderer] ${message}`, data);
 });
 
-ipcMain.handle('log-error', async (event: IpcMainInvokeEvent, message: string, error?: any, data?: any) => {
+ipcMain.handle('log-error', async (_event: IpcMainInvokeEvent, message: string, error?: any, data?: any) => {
   await logger.error(`[Renderer] ${message}`, error, data);
 });
 
-ipcMain.handle('log-action', async (event: IpcMainInvokeEvent, action: string, details?: any) => {
+ipcMain.handle('log-action', async (_event: IpcMainInvokeEvent, action: string, details?: any) => {
   await logger.action(action, details);
 });
 
 // Prevent navigation away from the app
-app.on('web-contents-created', (event, contents) => {
+app.on('web-contents-created', (_event, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
 

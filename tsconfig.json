@@ -31,8 +31,8 @@
   "include": [
     "src/**/*",
     "renderer/**/*",
-    "main.js",
-    "preload.js"
+    "main.ts",
+    "preload.ts"
   ],
   "exclude": [
     "node_modules",

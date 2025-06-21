@@ -49,12 +49,10 @@
     "appId": "com.yourname.murmur",
     "productName": "Murmur",
     "directories": {
-      "output": "dist"
+      "output": "build"
     },
     "files": [
-      "dist/main.js",
-      "dist/preload.js",
-      "dist/renderer/**/*",
+      "dist/**/*",
       "node_modules/**/*"
     ],
     "mac": {

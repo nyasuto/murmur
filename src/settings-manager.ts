@@ -2,6 +2,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
 import { Settings, ValidationResult } from './types';
+import { validateFilePath, validateApiKey, sanitizeApiKeyForLogging, sanitizePathForLogging } from './security-utils';
 
 interface LegacyConfig {
   obsidian_vault_path?: string;
@@ -85,6 +86,7 @@ class SettingsManager {
       console.log('Legacy config loaded:', {
         hasApiKey: !!legacyData.openai_api_key,
         hasVaultPath: !!legacyData.obsidian_vault_path,
+        apiKeyPrefix: sanitizeApiKeyForLogging(legacyData.openai_api_key || ''),
         apiKeyLength: legacyData.openai_api_key?.length || 0
       });
       
@@ -103,7 +105,7 @@ class SettingsManager {
       console.log('Migrated settings:', {
         hasApiKey: !!migratedSettings.openaiApiKey,
         hasVaultPath: !!migratedSettings.obsidianVaultPath,
-        vaultPath: migratedSettings.obsidianVaultPath,
+        vaultPath: sanitizePathForLogging(migratedSettings.obsidianVaultPath),
         model: migratedSettings.gptModel
       });
       
@@ -138,7 +140,7 @@ class SettingsManager {
         console.log('Settings loaded successfully:', {
           hasApiKey: !!mergedSettings.openaiApiKey,
           hasVaultPath: !!mergedSettings.obsidianVaultPath,
-          vaultPath: mergedSettings.obsidianVaultPath,
+          vaultPath: sanitizePathForLogging(mergedSettings.obsidianVaultPath),
           model: mergedSettings.gptModel
         });
         
@@ -159,6 +161,22 @@ class SettingsManager {
   async saveSettings(settings: Partial<Settings>): Promise<boolean> {
     try {
       await this.initialize();
+      
+      // Validate API key if provided
+      if (settings.openaiApiKey && !validateApiKey(settings.openaiApiKey)) {
+        console.warn('Invalid API key format detected');
+        return false;
+      }
+      
+      // Validate vault path if provided
+      if (settings.obsidianVaultPath) {
+        try {
+          validateFilePath(settings.obsidianVaultPath);
+        } catch (error) {
+          console.error('Invalid vault path:', (error as Error).message);
+          return false;
+        }
+      }
       
       // Merge with existing settings
       const currentSettings = await this.loadSettings();
@@ -186,7 +204,14 @@ class SettingsManager {
         return { valid: false, error: 'Vault path is required' };
       }
 
-      const normalizedPath = path.resolve(vaultPath);
+      // Validate path for security
+      let normalizedPath: string;
+      try {
+        normalizedPath = validateFilePath(vaultPath);
+        normalizedPath = path.resolve(normalizedPath);
+      } catch (error) {
+        return { valid: false, error: `Security error: ${(error as Error).message}` };
+      }
       
       // Check if directory exists
       if (!(await fs.pathExists(normalizedPath))) {

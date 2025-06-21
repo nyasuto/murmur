@@ -16,6 +16,14 @@ dist/
 build/
 *.tgz
 
+# TypeScript compilation artifacts
+*.d.ts
+*.d.ts.map
+*.js.map
+*.tsbuildinfo
+# TypeScript generated JS files in src/ (keep JS in renderer/)
+src/**/*.js
+
 # Runtime data
 pids
 *.pid

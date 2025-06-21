@@ -25,7 +25,9 @@ export default [
       '@typescript-eslint': typescriptEslint,
     },
     rules: {
-      indent: ['error', 2],
+      // Disable indent rule to avoid conflicts with Prettier
+      indent: 'off',
+      '@typescript-eslint/indent': 'off',
       quotes: ['error', 'single'],
       semi: ['error', 'always'],
       'no-unused-vars': 'off', // Use TypeScript version instead

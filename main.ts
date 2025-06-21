@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import OpenAIClient from './src/openai-client';
+import AudioProcessor from './src/audio-processor';
 import SettingsManager from './src/settings-manager';
 import ObsidianSaver from './src/obsidian-saver';
 import logger from './src/logger';
@@ -17,8 +18,9 @@ let mainWindow: BrowserWindow | null = null;
 let currentRecordingPath: string | null = null;
 const tempDir = path.join(os.tmpdir(), 'murmur-recordings');
 
-// OpenAI client instance
+// OpenAI client and audio processor instances
 let openaiClient: OpenAIClient | null = null;
+let audioProcessor: AudioProcessor | null = null;
 
 // Settings and Obsidian instances
 let settingsManager: SettingsManager | null = null;
@@ -79,12 +81,25 @@ async function initializeTempDir(): Promise<void> {
   }
 }
 
-// Initialize OpenAI client
+// Initialize OpenAI client and audio processor
 function initializeOpenAIClient(): void {
   const apiKey = process.env.OPENAI_API_KEY;
   if (apiKey) {
     openaiClient = new OpenAIClient(apiKey);
-    console.log('OpenAI client initialized');
+    audioProcessor = new AudioProcessor(apiKey, {
+      tempDirectory: path.join(tempDir, 'audio-processor'),
+      maxConcurrentJobs: 3,
+      chunkSizeBytes: 25 * 1024 * 1024, // 25MB chunks
+    });
+
+    // Set up progress event forwarding to renderer
+    audioProcessor.on('progress', (jobId: string, progress: any) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('audio-processing-progress', jobId, progress);
+      }
+    });
+
+    console.log('OpenAI client and audio processor initialized');
   } else {
     console.warn('OpenAI API key not found in environment variables');
   }
@@ -128,6 +143,10 @@ app.on('window-all-closed', async () => {
   // On macOS, keep app running even when all windows are closed
   if (process.platform !== 'darwin') {
     await logger.info('Application quitting');
+    // Cleanup audio processor before quitting
+    if (audioProcessor) {
+      await audioProcessor.cleanup();
+    }
     app.quit();
   }
 });
@@ -187,6 +206,106 @@ ipcMain.handle('cleanup-audio-recording', async (): Promise<SaveAudioResult> => 
     return { success: true };
   } catch (error) {
     console.error('Failed to cleanup audio recording:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+// Background audio processing handlers
+ipcMain.handle(
+  'process-audio-background',
+  async (
+    _event: IpcMainInvokeEvent,
+    options: TranscriptionOptions = {}
+  ): Promise<{ success: boolean; jobId?: string; error?: string }> => {
+    try {
+      if (!audioProcessor) {
+        return { success: false, error: 'Audio processor not initialized' };
+      }
+
+      if (!currentRecordingPath) {
+        return { success: false, error: 'No audio recording available for processing' };
+      }
+
+      const jobId = `process-${Date.now()}`;
+      await logger.info('Starting background audio processing', {
+        jobId,
+        audioPath: currentRecordingPath,
+      });
+
+      // Start processing in background (don't await)
+      audioProcessor
+        .processAudioFile(currentRecordingPath, options, jobId)
+        .then(result => {
+          // Send result back to renderer via progress event with special 'result' stage
+          if (mainWindow) {
+            mainWindow.webContents.send('audio-processing-result', jobId, result);
+          }
+        })
+        .catch(error => {
+          console.error('Background audio processing failed:', error);
+          if (mainWindow) {
+            mainWindow.webContents.send('audio-processing-result', jobId, {
+              success: false,
+              error: error.message,
+            });
+          }
+        });
+
+      return { success: true, jobId };
+    } catch (error) {
+      await logger.error('Failed to start background audio processing', error as Error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+);
+
+ipcMain.handle(
+  'cancel-audio-processing',
+  async (
+    _event: IpcMainInvokeEvent,
+    jobId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!audioProcessor) {
+        return { success: false, error: 'Audio processor not initialized' };
+      }
+
+      const cancelled = await audioProcessor.cancelJob(jobId);
+      await logger.info('Audio processing job cancellation', { jobId, cancelled });
+
+      return { success: cancelled };
+    } catch (error) {
+      await logger.error('Failed to cancel audio processing', error as Error, { jobId });
+      return { success: false, error: (error as Error).message };
+    }
+  }
+);
+
+ipcMain.handle('get-audio-cache-stats', async () => {
+  try {
+    if (!audioProcessor) {
+      return { success: false, error: 'Audio processor not initialized' };
+    }
+
+    const stats = audioProcessor.getCacheStats();
+    return { success: true, data: stats };
+  } catch (error) {
+    await logger.error('Failed to get audio cache stats', error as Error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('clear-audio-caches', async () => {
+  try {
+    if (!audioProcessor) {
+      return { success: false, error: 'Audio processor not initialized' };
+    }
+
+    audioProcessor.clearCaches();
+    await logger.info('Audio caches cleared successfully');
+    return { success: true };
+  } catch (error) {
+    await logger.error('Failed to clear audio caches', error as Error);
     return { success: false, error: (error as Error).message };
   }
 });
@@ -308,17 +427,31 @@ ipcMain.handle('update-openai-key', async (_event: IpcMainInvokeEvent, apiKey: s
   try {
     if (!apiKey || apiKey.trim() === '') {
       openaiClient = null;
+      audioProcessor = null;
       return { success: false, error: 'API key is required' };
     }
 
     openaiClient = new OpenAIClient(apiKey.trim());
+    audioProcessor = new AudioProcessor(apiKey.trim(), {
+      tempDirectory: path.join(tempDir, 'audio-processor'),
+      maxConcurrentJobs: 3,
+      chunkSizeBytes: 25 * 1024 * 1024, // 25MB chunks
+    });
+
+    // Set up progress event forwarding to renderer
+    audioProcessor.on('progress', (jobId: string, progress: any) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('audio-processing-progress', jobId, progress);
+      }
+    });
 
     // Test the connection
     const isConnected = await openaiClient.testConnection();
     if (isConnected) {
-      return { success: true, message: 'OpenAI client updated successfully' };
+      return { success: true, message: 'OpenAI client and audio processor updated successfully' };
     } else {
       openaiClient = null;
+      audioProcessor = null;
       return { success: false, error: 'Invalid API key or connection failed' };
     }
   } catch (error) {
@@ -369,10 +502,23 @@ ipcMain.handle(
       if (success) {
         await logger.info('Settings saved successfully');
 
-        // Update OpenAI client if API key changed
+        // Update OpenAI client and audio processor if API key changed
         if (newSettings.openaiApiKey && newSettings.openaiApiKey.trim() !== '') {
           openaiClient = new OpenAIClient(newSettings.openaiApiKey.trim());
-          await logger.info('OpenAI client updated with new API key');
+          audioProcessor = new AudioProcessor(newSettings.openaiApiKey.trim(), {
+            tempDirectory: path.join(tempDir, 'audio-processor'),
+            maxConcurrentJobs: 3,
+            chunkSizeBytes: 25 * 1024 * 1024, // 25MB chunks
+          });
+
+          // Set up progress event forwarding to renderer
+          audioProcessor.on('progress', (jobId: string, progress: any) => {
+            if (mainWindow) {
+              mainWindow.webContents.send('audio-processing-progress', jobId, progress);
+            }
+          });
+
+          await logger.info('OpenAI client and audio processor updated with new API key');
         }
       } else {
         await logger.warn('Settings save operation returned false');

@@ -1,4 +1,4 @@
-import { Settings, TranscriptionOptions, APIResponse } from '../src/types';
+import { TranscriptionOptions } from '../src/types';
 
 // DOM elements
 const recordButton = document.getElementById('recordButton') as HTMLButtonElement;
@@ -34,7 +34,6 @@ let volumeTimer: number | null = null;
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let microphone: MediaStreamAudioSourceNode | null = null;
-let currentAudioBlob: Blob | null = null;
 let transcribedText: string = '';
 let formattedContent: string = '';
 
@@ -170,7 +169,6 @@ async function setupMediaRecorder(): Promise<boolean> {
 
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      currentAudioBlob = audioBlob;
 
       // Show audio preview
       const audioUrl = URL.createObjectURL(audioBlob);
@@ -473,11 +471,6 @@ async function saveToObsidian(): Promise<void> {
   }
 
   try {
-    // Extract title from formatted content if possible
-    const lines = formattedContent.split('\n');
-    const titleLine = lines.find(line => line.startsWith('# '));
-    const title = titleLine ? titleLine.replace('# ', '').trim() : undefined;
-
     const result = await window.electronAPI.saveToObsidian(formattedContent, {
       subfolder: 'voice-memos' // Save in a dedicated subfolder
     });
@@ -504,7 +497,6 @@ async function clearContent(): Promise<void> {
   hideResults();
   transcribedText = '';
   formattedContent = '';
-  currentAudioBlob = null;
 
   // Stop any ongoing recording
   if (isRecording) {

@@ -1,8 +1,40 @@
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import * as os from 'os';
+
+interface LogFile {
+  name: string;
+  path: string;
+  date: string;
+}
+
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  process: string;
+  pid: number;
+  data?: any;
+  error?: {
+    name: string;
+    message: string;
+    stack: string;
+  };
+}
+
+interface APICallData {
+  service: string;
+  method: string;
+  duration: number | null;
+  success: boolean;
+}
 
 class Logger {
+  private readonly logDir: string;
+  private readonly logFile: string;
+  private readonly maxLogFiles: number;
+  private initialized: boolean;
+
   constructor() {
     this.logDir = path.join(os.homedir(), '.murmur', 'logs');
     this.logFile = path.join(this.logDir, `murmur-${this.getCurrentDate()}.log`);
@@ -13,7 +45,7 @@ class Logger {
   /**
    * Initialize logger
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     try {
       await fs.ensureDir(this.logDir);
       await this.cleanOldLogs();
@@ -27,24 +59,24 @@ class Logger {
   /**
    * Get current date in YYYY-MM-DD format
    */
-  getCurrentDate() {
+  private getCurrentDate(): string {
     return new Date().toISOString().split('T')[0];
   }
 
   /**
    * Get current timestamp
    */
-  getCurrentTimestamp() {
+  private getCurrentTimestamp(): string {
     return new Date().toISOString();
   }
 
   /**
    * Clean old log files
    */
-  async cleanOldLogs() {
+  private async cleanOldLogs(): Promise<void> {
     try {
       const files = await fs.readdir(this.logDir);
-      const logFiles = files
+      const logFiles: LogFile[] = files
         .filter(file => file.startsWith('murmur-') && file.endsWith('.log'))
         .map(file => ({
           name: file,
@@ -69,8 +101,8 @@ class Logger {
   /**
    * Format log entry
    */
-  formatLogEntry(level, message, data = null, error = null) {
-    const entry = {
+  private formatLogEntry(level: string, message: string, data: any = null, error: Error | null = null): string {
+    const entry: LogEntry = {
       timestamp: this.getCurrentTimestamp(),
       level: level.toUpperCase(),
       message,
@@ -86,7 +118,7 @@ class Logger {
       entry.error = {
         name: error.name,
         message: error.message,
-        stack: error.stack
+        stack: error.stack || ''
       };
     }
 
@@ -96,7 +128,7 @@ class Logger {
   /**
    * Write log entry to file
    */
-  async writeLog(level, message, data = null, error = null) {
+  private async writeLog(level: string, message: string, data: any = null, error: Error | null = null): Promise<void> {
     if (!this.initialized) {
       console.warn('Logger not initialized, skipping log entry');
       return;
@@ -125,28 +157,28 @@ class Logger {
   /**
    * Log info message
    */
-  async info(message, data = null) {
+  async info(message: string, data: any = null): Promise<void> {
     await this.writeLog('info', message, data);
   }
 
   /**
    * Log warning message
    */
-  async warn(message, data = null) {
+  async warn(message: string, data: any = null): Promise<void> {
     await this.writeLog('warn', message, data);
   }
 
   /**
    * Log error message
    */
-  async error(message, error = null, data = null) {
+  async error(message: string, error: Error | null = null, data: any = null): Promise<void> {
     await this.writeLog('error', message, data, error);
   }
 
   /**
    * Log debug message
    */
-  async debug(message, data = null) {
+  async debug(message: string, data: any = null): Promise<void> {
     if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
       await this.writeLog('debug', message, data);
     }
@@ -155,15 +187,15 @@ class Logger {
   /**
    * Log user action
    */
-  async action(action, details = null) {
+  async action(action: string, details: any = null): Promise<void> {
     await this.info(`User action: ${action}`, details);
   }
 
   /**
    * Log API call
    */
-  async apiCall(service, method, duration = null, success = true, error = null) {
-    const data = {
+  async apiCall(service: string, method: string, duration: number | null = null, success: boolean = true, error: Error | null = null): Promise<void> {
+    const data: APICallData = {
       service,
       method,
       duration,
@@ -180,14 +212,14 @@ class Logger {
   /**
    * Get log file path for debugging
    */
-  getLogFile() {
+  getLogFile(): string {
     return this.logFile;
   }
 
   /**
    * Get recent log entries
    */
-  async getRecentLogs(lines = 100) {
+  async getRecentLogs(lines: number = 100): Promise<Array<LogEntry | { raw: string }>> {
     try {
       if (!(await fs.pathExists(this.logFile))) {
         return [];
@@ -199,7 +231,7 @@ class Logger {
       
       return recentLines.map(line => {
         try {
-          return JSON.parse(line);
+          return JSON.parse(line) as LogEntry;
         } catch (error) {
           return { raw: line };
         }
@@ -214,4 +246,4 @@ class Logger {
 // Create singleton instance
 const logger = new Logger();
 
-module.exports = logger;
+export default logger;

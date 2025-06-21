@@ -38,6 +38,8 @@ describe('OpenAIClient', () => {
   afterEach(async () => {
     await cleanupTempDir(tempDir);
     jest.clearAllMocks();
+    // Clear caches between tests to avoid interference
+    client.clearCaches();
   });
 
   describe('constructor', () => {

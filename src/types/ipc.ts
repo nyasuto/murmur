@@ -33,6 +33,19 @@ export interface ElectronAPI {
   transcribeAudio(options: TranscriptionOptions): Promise<TranscriptionResult>;
   formatText(text: string, options?: any): Promise<APIResponse & { formatted_text?: string }>;
 
+  // Background audio processing
+  processAudioBackground(
+    options: TranscriptionOptions
+  ): Promise<{ success: boolean; jobId?: string; error?: string }>;
+  cancelAudioProcessing(jobId: string): Promise<{ success: boolean; error?: string }>;
+  getAudioCacheStats(): Promise<APIResponse & { data?: any }>;
+  clearAudioCaches(): Promise<APIResponse>;
+
+  // Event listeners for progress updates
+  onAudioProcessingProgress(callback: (jobId: string, progress: any) => void): void;
+  onAudioProcessingResult(callback: (jobId: string, result: any) => void): void;
+  removeAllListeners(channel: string): void;
+
   // File operations
   selectAudioFile(): Promise<APIResponse<string>>;
   saveAudioRecording(

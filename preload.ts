@@ -21,6 +21,25 @@ const electronAPI: ElectronAPI = {
   transcribeAudio: options => ipcRenderer.invoke('transcribe-audio', options),
   formatText: (text, options) => ipcRenderer.invoke('format-text', text, options),
 
+  // Background audio processing
+  processAudioBackground: options => ipcRenderer.invoke('process-audio-background', options),
+  cancelAudioProcessing: jobId => ipcRenderer.invoke('cancel-audio-processing', jobId),
+  getAudioCacheStats: () => ipcRenderer.invoke('get-audio-cache-stats'),
+  clearAudioCaches: () => ipcRenderer.invoke('clear-audio-caches'),
+
+  // Event listeners for progress updates
+  onAudioProcessingProgress: (callback: (jobId: string, progress: any) => void) => {
+    ipcRenderer.on('audio-processing-progress', (_event, jobId, progress) =>
+      callback(jobId, progress)
+    );
+  },
+  onAudioProcessingResult: (callback: (jobId: string, result: any) => void) => {
+    ipcRenderer.on('audio-processing-result', (_event, jobId, result) => callback(jobId, result));
+  },
+  removeAllListeners: (channel: string) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
+
   // File operations
   selectAudioFile: () => ipcRenderer.invoke('show-save-dialog'),
   saveAudioRecording: (audioBuffer, fileName) =>

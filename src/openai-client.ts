@@ -3,6 +3,7 @@ const FormData = require('form-data');
 import * as fs from 'fs-extra';
 import { TranscriptionOptions, TranscriptionResult } from './types';
 import { RateLimiter, validateApiKey } from './security-utils';
+import { transcriptionCache, formattingCache } from './cache-manager';
 
 interface OpenAITranscriptionResponse {
   text: string;
@@ -80,13 +81,31 @@ class OpenAIClient {
   }
 
   /**
-   * Transcribe audio using Whisper API
+   * Transcribe audio using Whisper API with caching
    */
   async transcribeAudio(
     audioFilePath: string,
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
     try {
+      if (!(await fs.pathExists(audioFilePath))) {
+        throw new Error(`Audio file not found: ${audioFilePath}`);
+      }
+
+      // Generate cache key based on file content and options
+      const fileHash = await transcriptionCache.generateFileKey(audioFilePath);
+      const optionsHash = transcriptionCache.generateContentKey('', options);
+      const cacheKey = `${fileHash}_${optionsHash}`;
+
+      // Check cache first
+      const cachedResult = transcriptionCache.get(cacheKey);
+      if (cachedResult) {
+        console.log('🎯 Cache hit for transcription:', cacheKey.substring(0, 16) + '...');
+        return cachedResult;
+      }
+
+      console.log('📡 Cache miss, calling OpenAI API for transcription...');
+
       // Check rate limit
       if (!this.rateLimiter.isAllowed()) {
         const waitTime = this.rateLimiter.getTimeUntilReset();
@@ -94,9 +113,6 @@ class OpenAIClient {
           success: false,
           error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`,
         };
-      }
-      if (!(await fs.pathExists(audioFilePath))) {
-        throw new Error(`Audio file not found: ${audioFilePath}`);
       }
 
       const formData = new FormData();
@@ -128,11 +144,17 @@ class OpenAIClient {
         }
       );
 
-      return {
+      const result: TranscriptionResult = {
         success: true,
         text: response.data.text,
         duration: response.data.duration,
       };
+
+      // Cache the successful result
+      transcriptionCache.set(cacheKey, result);
+      console.log('💾 Cached transcription result:', cacheKey.substring(0, 16) + '...');
+
+      return result;
     } catch (error: any) {
       console.error('Whisper API transcription failed:', error);
 
@@ -156,10 +178,27 @@ class OpenAIClient {
   }
 
   /**
-   * Format text using GPT API
+   * Format text using GPT API with caching
    */
   async formatText(text: string, options: FormatTextOptions = {}): Promise<FormatTextResult> {
     try {
+      // Generate cache key based on text content and options
+      const cacheKey = formattingCache.generateContentKey(text, {
+        model: options.model || 'gpt-3.5-turbo',
+        temperature: options.temperature || 0.7,
+        max_tokens: options.max_tokens || 2000,
+        hasCustomPrompt: !!options.prompt,
+      });
+
+      // Check cache first
+      const cachedResult = formattingCache.get(cacheKey);
+      if (cachedResult) {
+        console.log('🎯 Cache hit for text formatting:', cacheKey.substring(0, 16) + '...');
+        return cachedResult;
+      }
+
+      console.log('📡 Cache miss, calling OpenAI API for text formatting...');
+
       // Check rate limit
       if (!this.rateLimiter.isAllowed()) {
         const waitTime = this.rateLimiter.getTimeUntilReset();
@@ -215,12 +254,18 @@ ${text}
 
       const formattedText = response.data.choices[0].message.content;
 
-      return {
+      const result: FormatTextResult = {
         success: true,
         formatted_text: formattedText,
         usage: response.data.usage,
         model: response.data.model,
       };
+
+      // Cache the successful result
+      formattingCache.set(cacheKey, result);
+      console.log('💾 Cached formatting result:', cacheKey.substring(0, 16) + '...');
+
+      return result;
     } catch (error: any) {
       console.error('GPT API formatting failed:', error);
 
@@ -255,6 +300,28 @@ ${text}
       console.error('OpenAI API connection test failed:', error);
       return false;
     }
+  }
+
+  /**
+   * Get cache statistics for monitoring performance
+   */
+  getCacheStats(): {
+    transcription: ReturnType<typeof transcriptionCache.getStats>;
+    formatting: ReturnType<typeof formattingCache.getStats>;
+  } {
+    return {
+      transcription: transcriptionCache.getStats(),
+      formatting: formattingCache.getStats(),
+    };
+  }
+
+  /**
+   * Clear caches (useful for testing or memory management)
+   */
+  clearCaches(): void {
+    transcriptionCache.clear();
+    formattingCache.clear();
+    console.log('🧹 All caches cleared');
   }
 }
 

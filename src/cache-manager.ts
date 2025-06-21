@@ -141,7 +141,7 @@ export class CacheManager<T> {
       age: number;
       lastAccessed: number;
     }>;
-  } {
+    } {
     const entries = Array.from(this.cache.entries()).map(([key, entry]) => ({
       key: key.substring(0, 16) + '...', // Truncate for readability
       accessCount: entry.accessCount,

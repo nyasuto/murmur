@@ -2,7 +2,7 @@
   "name": "murmur",
   "version": "1.0.0",
   "description": "Electronを使ったパーソナルライフログ生成アプリ",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "npm run build:ts && electron . --dev",
@@ -49,12 +49,10 @@
     "appId": "com.yourname.murmur",
     "productName": "Murmur",
     "directories": {
-      "output": "dist"
+      "output": "build"
     },
     "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
+      "dist/**/*",
       "node_modules/**/*"
     ],
     "mac": {

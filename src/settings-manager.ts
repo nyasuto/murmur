@@ -160,7 +160,7 @@ class SettingsManager {
    */
   async saveSettings(settings: Partial<Settings>): Promise<boolean> {
     try {
-      await this.initialize();
+      await fs.ensureDir(this.settingsDir);
       
       // Validate API key if provided
       if (settings.openaiApiKey && !validateApiKey(settings.openaiApiKey)) {
@@ -178,8 +178,17 @@ class SettingsManager {
         }
       }
       
-      // Merge with existing settings
-      const currentSettings = await this.loadSettings();
+      // Merge with existing settings (avoid recursive call)
+      let currentSettings = this.defaultSettings;
+      if (await fs.pathExists(this.settingsFile)) {
+        try {
+          const existingData = await fs.readJson(this.settingsFile);
+          currentSettings = { ...this.defaultSettings, ...existingData };
+        } catch (error) {
+          console.warn('Failed to read existing settings, using defaults:', error);
+        }
+      }
+      
       const newSettings: Settings = { ...currentSettings, ...settings };
       
       // Don't save empty API keys to file for security

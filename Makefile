@@ -77,10 +77,10 @@ format: ## Prettierでコードを整形
 		echo "$(YELLOW)⚠️  npx が利用できません$(RESET)"; \
 	fi
 
-type-check: ## TypeScriptタイプチェック（該当する場合）
+type-check: ## TypeScriptタイプチェック
 	@echo "$(GREEN)🔍 タイプチェック中...$(RESET)"
 	@if [ -f tsconfig.json ]; then \
-		npx tsc --noEmit; \
+		$(NPM) run type-check; \
 	else \
 		echo "$(YELLOW)⚠️  TypeScript設定が見つかりません。スキップ$(RESET)"; \
 	fi

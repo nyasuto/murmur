@@ -39,11 +39,21 @@ describe('Security Utils', () => {
     });
 
     test('should reject access to system directories', () => {
-      const systemPaths = ['/etc/passwd', '/usr/bin', '/var/log', '/sys/kernel'];
+      const systemPaths = ['/etc/passwd', '/usr/bin', '/sys/kernel', '/proc/version'];
       
       for (const path of systemPaths) {
         expect(() => validateFilePath(path)).toThrow('access to system directory');
       }
+    });
+    
+    test('should reject unsafe /var directories but allow temp directories', () => {
+      // Should reject unsafe /var paths
+      expect(() => validateFilePath('/var/log')).toThrow('access to system directory');
+      expect(() => validateFilePath('/var/lib')).toThrow('access to system directory');
+      
+      // Should allow temp directories
+      expect(() => validateFilePath('/var/folders/temp')).not.toThrow();
+      expect(() => validateFilePath('/tmp/test')).not.toThrow();
     });
 
     test('should reject empty or invalid inputs', () => {

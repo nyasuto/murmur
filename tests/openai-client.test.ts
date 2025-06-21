@@ -12,20 +12,24 @@ describe('OpenAIClient', () => {
   let client: OpenAIClient;
   let tempDir: string;
   let mockApiKey: string;
+  let mockAxiosInstance: any;
 
   beforeEach(async () => {
     tempDir = await createTempDir();
     mockApiKey = createMockApiKey();
     
-    // Mock axios.create
-    mockedAxios.create.mockReturnValue({
+    // Create mock axios instance
+    mockAxiosInstance = {
       post: jest.fn(),
       get: jest.fn(),
       defaults: {
         headers: {},
         timeout: 60000
       }
-    } as any);
+    };
+    
+    // Mock axios.create to return our mock instance
+    mockedAxios.create.mockReturnValue(mockAxiosInstance as any);
 
     client = new OpenAIClient(mockApiKey);
   });
@@ -58,13 +62,10 @@ describe('OpenAIClient', () => {
 
   describe('transcribeAudio', () => {
     let mockAudioFile: string;
-    let mockAxiosInstance: any;
 
     beforeEach(async () => {
       mockAudioFile = `${tempDir}/test-audio.webm`;
       await fs.writeFile(mockAudioFile, 'fake audio data');
-      
-      mockAxiosInstance = mockedAxios.create.mock.results[0].value;
     });
 
     test('should transcribe audio successfully', async () => {
@@ -98,6 +99,8 @@ describe('OpenAIClient', () => {
     });
 
     test('should handle missing audio file', async () => {
+      // Ensure temp directory exists
+      await fs.ensureDir(tempDir);
       const nonExistentFile = `${tempDir}/nonexistent.webm`;
       
       const result = await client.transcribeAudio(nonExistentFile);

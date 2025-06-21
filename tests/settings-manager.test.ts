@@ -1,9 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as os from 'os';
 import SettingsManager from '../src/settings-manager';
 import { Settings } from '../src/types';
 import { createTempDir, cleanupTempDir, createMockApiKey, createMockVaultPath } from './setup';
+
+// Mock os module
+jest.mock('os');
 
 describe('SettingsManager', () => {
   let settingsManager: SettingsManager;
@@ -14,16 +18,17 @@ describe('SettingsManager', () => {
     tempDir = await createTempDir();
     mockVaultPath = await createMockVaultPath();
     
-    // Mock os.homedir to use our temp directory
-    jest.spyOn(require('os'), 'homedir').mockReturnValue(tempDir);
+    // Mock os.homedir to return our temp directory
+    (os.homedir as jest.Mock).mockReturnValue(tempDir);
     
+    // Create SettingsManager with mocked home directory
     settingsManager = new SettingsManager();
   });
 
   afterEach(async () => {
     await cleanupTempDir(tempDir);
     await cleanupTempDir(mockVaultPath);
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('initialization', () => {
@@ -62,6 +67,9 @@ describe('SettingsManager', () => {
       const legacyConfigPath = path.join(tempDir, '.murmur', 'config.json');
       await fs.ensureDir(path.dirname(legacyConfigPath));
       await fs.writeJson(legacyConfigPath, legacyConfig);
+      
+      // Verify the file was created
+      expect(await fs.pathExists(legacyConfigPath)).toBe(true);
 
       const migratedSettings = await settingsManager.migrateLegacyConfig();
 
@@ -84,8 +92,12 @@ describe('SettingsManager', () => {
 
   describe('settings management', () => {
     test('should load and save settings correctly', async () => {
+      // Use a safe path that passes security validation
+      const safePath = path.join(require('os').homedir(), 'Documents', 'test-vault');
+      await fs.ensureDir(safePath);
+      
       const testSettings: Partial<Settings> = {
-        obsidianVaultPath: mockVaultPath,
+        obsidianVaultPath: safePath,
         openaiApiKey: createMockApiKey(),
         gptModel: 'gpt-4o',
         temperature: 0.8
@@ -95,10 +107,13 @@ describe('SettingsManager', () => {
       expect(success).toBe(true);
 
       const loadedSettings = await settingsManager.loadSettings();
-      expect(loadedSettings.obsidianVaultPath).toBe(mockVaultPath);
+      expect(loadedSettings.obsidianVaultPath).toBe(safePath);
       expect(loadedSettings.openaiApiKey).toBe(testSettings.openaiApiKey);
       expect(loadedSettings.gptModel).toBe('gpt-4o');
       expect(loadedSettings.temperature).toBe(0.8);
+      
+      // Cleanup
+      await fs.remove(safePath);
     });
 
     test('should reject invalid API keys', async () => {
@@ -130,7 +145,7 @@ describe('SettingsManager', () => {
     });
 
     test('should reject non-existent paths', async () => {
-      const nonExistentPath = path.join(tempDir, 'nonexistent');
+      const nonExistentPath = path.join(require('os').homedir(), 'definitely-does-not-exist-test-path-12345');
       const result = await settingsManager.validateObsidianVault(nonExistentPath);
       
       expect(result.valid).toBe(false);
@@ -146,13 +161,14 @@ describe('SettingsManager', () => {
     });
 
     test('should warn if directory is not an Obsidian vault', async () => {
-      const regularDir = await createTempDir();
+      // Create a regular directory that doesn't have .obsidian subfolder
+      const regularDir = path.join(tempDir, 'regular-directory');
+      await fs.ensureDir(regularDir);
+      
       const result = await settingsManager.validateObsidianVault(regularDir);
       
       expect(result.valid).toBe(true);
       expect(result.warning).toContain('does not appear to be an Obsidian vault');
-      
-      await cleanupTempDir(regularDir);
     });
 
     test('should reject empty or null paths', async () => {

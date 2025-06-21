@@ -1,7 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { Settings, ValidationResult, APIResponse } from './types';
+import { Settings, ValidationResult } from './types';
 
 interface LegacyConfig {
   obsidian_vault_path?: string;

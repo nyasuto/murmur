@@ -5,9 +5,9 @@ import * as os from 'os';
 import OpenAIClient from './src/openai-client';
 import SettingsManager from './src/settings-manager';
 import ObsidianSaver from './src/obsidian-saver';
+import logger from './src/logger';
 import { Settings, TranscriptionOptions, APIResponse } from './src/types';
 
-const logger = require('./src/logger');
 require('dotenv').config();
 
 // Keep a global reference of the window object

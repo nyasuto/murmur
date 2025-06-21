@@ -64,7 +64,7 @@ class OpenAIClient {
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         'User-Agent': 'Murmur/1.0.0',
       },
       timeout: 60000, // 60 seconds timeout

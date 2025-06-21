@@ -1,7 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import SettingsManager from './settings-manager';
-import { APIResponse, Settings, ValidationResult } from './types';
 
 interface SaveOptions {
   fileName?: string;

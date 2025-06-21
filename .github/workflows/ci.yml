@@ -156,7 +156,7 @@ jobs:
     - name: アプリケーションビルド
       run: |
         echo "🏗️  Building application for ${{ matrix.os }}"
-        npm run build
+        make build
         
     - name: ビルド成果物の検証
       run: |

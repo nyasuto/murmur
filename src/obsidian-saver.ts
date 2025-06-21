@@ -76,28 +76,32 @@ class ObsidianSaver {
   async saveToVault(content: string, options: SaveOptions = {}): Promise<SaveResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
-      
+
       if (!settings.obsidianVaultPath) {
         return {
           success: false,
-          error: 'Obsidian vault path not configured'
+          error: 'Obsidian vault path not configured',
         };
       }
 
       // Validate vault path
-      const validation = await this.settingsManager.validateObsidianVault(settings.obsidianVaultPath);
+      const validation = await this.settingsManager.validateObsidianVault(
+        settings.obsidianVaultPath
+      );
       if (!validation.valid) {
         return {
           success: false,
-          error: `Invalid vault path: ${validation.error}`
+          error: `Invalid vault path: ${validation.error}`,
         };
       }
 
       // Generate filename
-      const fileName = options.fileName || this.settingsManager.generateFileName({
-        format: settings.fileNameFormat,
-        title: options.title
-      });
+      const fileName =
+        options.fileName ||
+        this.settingsManager.generateFileName({
+          format: settings.fileNameFormat,
+          title: options.title,
+        });
 
       // Determine save location
       let savePath: string;
@@ -123,7 +127,7 @@ class ObsidianSaver {
         fileName: path.basename(finalSavePath),
         createdAt: new Date().toISOString(),
         vaultPath: settings.obsidianVaultPath,
-        ...options
+        ...options,
       });
 
       // Save file
@@ -133,14 +137,13 @@ class ObsidianSaver {
         success: true,
         filePath: finalSavePath,
         fileName: path.basename(finalSavePath),
-        message: 'File saved successfully to Obsidian vault'
+        message: 'File saved successfully to Obsidian vault',
       };
-
     } catch (error) {
       console.error('Failed to save to Obsidian vault:', error);
       return {
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -150,12 +153,12 @@ class ObsidianSaver {
    */
   private prepareContent(content: string, metadata: FileMetadata): string {
     const frontMatter = this.generateFrontMatter(metadata);
-    
+
     // Add front matter if content doesn't already have it
     if (!content.startsWith('---')) {
       return `${frontMatter}\n${content}`;
     }
-    
+
     return content;
   }
 
@@ -167,7 +170,7 @@ class ObsidianSaver {
       created: metadata.createdAt,
       tags: ['voice-memo', 'murmur'],
       type: 'voice-memo',
-      source: 'Murmur App'
+      source: 'Murmur App',
     };
 
     // Add additional metadata if provided
@@ -200,37 +203,39 @@ class ObsidianSaver {
   async listVoiceMemos(options: ListOptions = {}): Promise<ListResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
-      
+
       if (!settings.obsidianVaultPath) {
         return {
           success: false,
-          error: 'Obsidian vault path not configured'
+          error: 'Obsidian vault path not configured',
         };
       }
 
-      const validation = await this.settingsManager.validateObsidianVault(settings.obsidianVaultPath);
+      const validation = await this.settingsManager.validateObsidianVault(
+        settings.obsidianVaultPath
+      );
       if (!validation.valid) {
         return {
           success: false,
-          error: validation.error
+          error: validation.error,
         };
       }
 
       // Search for voice memo files
-      const searchPath = options.subfolder ? 
-        path.join(validation.path!, options.subfolder) : 
-        validation.path!;
+      const searchPath = options.subfolder
+        ? path.join(validation.path!, options.subfolder)
+        : validation.path!;
 
       const files: VoiceMemoFile[] = [];
-      
+
       if (await fs.pathExists(searchPath)) {
         const dirEntries = await fs.readdir(searchPath, { withFileTypes: true });
-        
+
         for (const entry of dirEntries) {
           if (entry.isFile() && entry.name.endsWith('.md')) {
             const filePath = path.join(searchPath, entry.name);
             const stats = await fs.stat(filePath);
-            
+
             // Check if it's a voice memo by reading content
             const content = await fs.readFile(filePath, 'utf8');
             if (content.includes('voice-memo') || content.includes('murmur')) {
@@ -239,7 +244,7 @@ class ObsidianSaver {
                 path: filePath,
                 size: stats.size,
                 created: stats.birthtime,
-                modified: stats.mtime
+                modified: stats.mtime,
               });
             }
           }
@@ -252,14 +257,13 @@ class ObsidianSaver {
       return {
         success: true,
         files,
-        count: files.length
+        count: files.length,
       };
-
     } catch (error) {
       console.error('Failed to list voice memos:', error);
       return {
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -270,30 +274,32 @@ class ObsidianSaver {
   async deleteVoiceMemo(fileName: string, options: DeleteOptions = {}): Promise<DeleteResult> {
     try {
       const settings = await this.settingsManager.loadSettings();
-      
+
       if (!settings.obsidianVaultPath) {
         return {
           success: false,
-          error: 'Obsidian vault path not configured'
+          error: 'Obsidian vault path not configured',
         };
       }
 
-      const validation = await this.settingsManager.validateObsidianVault(settings.obsidianVaultPath);
+      const validation = await this.settingsManager.validateObsidianVault(
+        settings.obsidianVaultPath
+      );
       if (!validation.valid) {
         return {
           success: false,
-          error: validation.error
+          error: validation.error,
         };
       }
 
-      const filePath = options.subfolder ?
-        path.join(validation.path!, options.subfolder, fileName) :
-        path.join(validation.path!, fileName);
+      const filePath = options.subfolder
+        ? path.join(validation.path!, options.subfolder, fileName)
+        : path.join(validation.path!, fileName);
 
       if (!(await fs.pathExists(filePath))) {
         return {
           success: false,
-          error: 'File not found'
+          error: 'File not found',
         };
       }
 
@@ -301,14 +307,13 @@ class ObsidianSaver {
 
       return {
         success: true,
-        message: 'Voice memo deleted successfully'
+        message: 'Voice memo deleted successfully',
       };
-
     } catch (error) {
       console.error('Failed to delete voice memo:', error);
       return {
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }

@@ -8,7 +8,7 @@ beforeAll(() => {
   // Set up test environment variables
   process.env.NODE_ENV = 'test';
   process.env.MURMUR_TEST_MODE = 'true';
-  
+
   // Override console methods in test to reduce noise
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -18,7 +18,7 @@ beforeAll(() => {
 afterAll(() => {
   // Clean up test environment
   delete process.env.MURMUR_TEST_MODE;
-  
+
   // Restore console methods
   jest.restoreAllMocks();
 });
@@ -27,7 +27,7 @@ afterAll(() => {
 export const createTempDir = async (): Promise<string> => {
   // Use home directory for test temp files to avoid /var restrictions
   const baseTmpDir = path.join(os.homedir(), '.tmp');
-  
+
   try {
     await fs.ensureDir(baseTmpDir); // Ensure base temp directory exists
   } catch (error) {
@@ -37,7 +37,7 @@ export const createTempDir = async (): Promise<string> => {
     await fs.ensureDir(fallbackDir);
     return fallbackDir;
   }
-  
+
   const tempDir = path.join(baseTmpDir, 'murmur-test', Date.now().toString());
   await fs.ensureDir(tempDir);
   return tempDir;

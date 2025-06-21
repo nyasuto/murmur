@@ -17,10 +17,14 @@ describe('SettingsManager', () => {
   beforeEach(async () => {
     tempDir = await createTempDir();
     mockVaultPath = await createMockVaultPath();
-    
+
+    // Ensure .obsidian directory exists in mock vault for consistent testing
+    const obsidianDir = path.join(mockVaultPath, '.obsidian');
+    await fs.ensureDir(obsidianDir);
+
     // Mock os.homedir to return our temp directory
     (os.homedir as jest.Mock).mockReturnValue(tempDir);
-    
+
     // Create SettingsManager with mocked home directory
     settingsManager = new SettingsManager();
   });
@@ -34,17 +38,17 @@ describe('SettingsManager', () => {
   describe('initialization', () => {
     test('should create settings directory if it does not exist', async () => {
       await settingsManager.initialize();
-      
+
       const settingsDir = path.join(tempDir, '.murmur');
       expect(await fs.pathExists(settingsDir)).toBe(true);
     });
 
     test('should create default settings file if none exists', async () => {
       await settingsManager.initialize();
-      
+
       const settingsFile = path.join(tempDir, '.murmur', 'settings.json');
       expect(await fs.pathExists(settingsFile)).toBe(true);
-      
+
       const settings = await fs.readJson(settingsFile);
       expect(settings).toHaveProperty('obsidianVaultPath', '');
       expect(settings).toHaveProperty('openaiApiKey', '');
@@ -60,14 +64,14 @@ describe('SettingsManager', () => {
         whisper_language: 'ja',
         openai_model: 'gpt-4o',
         openai_temperature: 0.5,
-        auto_save_enabled: true
+        auto_save_enabled: true,
       };
 
       // Create legacy config file
       const legacyConfigPath = path.join(tempDir, '.murmur', 'config.json');
       await fs.ensureDir(path.dirname(legacyConfigPath));
       await fs.writeJson(legacyConfigPath, legacyConfig);
-      
+
       // Verify the file was created
       expect(await fs.pathExists(legacyConfigPath)).toBe(true);
 
@@ -95,12 +99,12 @@ describe('SettingsManager', () => {
       // Use a safe path that passes security validation within our temp directory
       const safePath = path.join(tempDir, 'Documents', 'test-vault');
       await fs.ensureDir(safePath);
-      
+
       const testSettings: Partial<Settings> = {
         obsidianVaultPath: safePath,
         openaiApiKey: createMockApiKey(),
         gptModel: 'gpt-4o',
-        temperature: 0.8
+        temperature: 0.8,
       };
 
       const success = await settingsManager.saveSettings(testSettings);
@@ -111,14 +115,14 @@ describe('SettingsManager', () => {
       expect(loadedSettings.openaiApiKey).toBe(testSettings.openaiApiKey);
       expect(loadedSettings.gptModel).toBe('gpt-4o');
       expect(loadedSettings.temperature).toBe(0.8);
-      
+
       // Cleanup
       await fs.remove(safePath);
     });
 
     test('should reject invalid API keys', async () => {
       const invalidSettings: Partial<Settings> = {
-        openaiApiKey: 'invalid-key'
+        openaiApiKey: 'invalid-key',
       };
 
       const success = await settingsManager.saveSettings(invalidSettings);
@@ -127,7 +131,7 @@ describe('SettingsManager', () => {
 
     test('should reject invalid vault paths', async () => {
       const invalidSettings: Partial<Settings> = {
-        obsidianVaultPath: '../../../etc/passwd'
+        obsidianVaultPath: '../../../etc/passwd',
       };
 
       const success = await settingsManager.saveSettings(invalidSettings);
@@ -137,8 +141,12 @@ describe('SettingsManager', () => {
 
   describe('Obsidian vault validation', () => {
     test('should validate correct vault path', async () => {
+      // Verify the .obsidian directory exists in our mock vault
+      const obsidianDir = path.join(mockVaultPath, '.obsidian');
+      expect(await fs.pathExists(obsidianDir)).toBe(true);
+
       const result = await settingsManager.validateObsidianVault(mockVaultPath);
-      
+
       expect(result.valid).toBe(true);
       expect(result.path).toBe(path.resolve(mockVaultPath));
       expect(result.warning).toBeUndefined();
@@ -147,7 +155,7 @@ describe('SettingsManager', () => {
     test('should reject non-existent paths', async () => {
       const nonExistentPath = path.join(tempDir, 'definitely-does-not-exist-test-path-12345');
       const result = await settingsManager.validateObsidianVault(nonExistentPath);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('does not exist');
     });
@@ -155,7 +163,7 @@ describe('SettingsManager', () => {
     test('should reject path traversal attempts', async () => {
       const maliciousPath = '../../../etc';
       const result = await settingsManager.validateObsidianVault(maliciousPath);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Security error');
     });
@@ -164,9 +172,9 @@ describe('SettingsManager', () => {
       // Create a regular directory that doesn't have .obsidian subfolder
       const regularDir = path.join(tempDir, 'regular-directory');
       await fs.ensureDir(regularDir);
-      
+
       const result = await settingsManager.validateObsidianVault(regularDir);
-      
+
       expect(result.valid).toBe(true);
       expect(result.warning).toContain('does not appear to be an Obsidian vault');
     });
@@ -174,7 +182,7 @@ describe('SettingsManager', () => {
     test('should reject empty or null paths', async () => {
       const result1 = await settingsManager.validateObsidianVault('');
       const result2 = await settingsManager.validateObsidianVault('   ');
-      
+
       expect(result1.valid).toBe(false);
       expect(result2.valid).toBe(false);
       expect(result1.error).toContain('required');
@@ -185,24 +193,24 @@ describe('SettingsManager', () => {
   describe('filename generation', () => {
     test('should generate filename with timestamp', () => {
       const filename = settingsManager.generateFileName();
-      
+
       expect(filename).toMatch(/voice-memo-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.md$/);
     });
 
     test('should use custom title and format', () => {
       const filename = settingsManager.generateFileName({
         format: 'daily-{date}-{title}',
-        title: 'meeting-notes'
+        title: 'meeting-notes',
       });
-      
+
       expect(filename).toMatch(/daily-\d{4}-\d{2}-\d{2}-meeting-notes\.md$/);
     });
 
     test('should ensure .md extension', () => {
       const filename = settingsManager.generateFileName({
-        format: 'test-file'
+        format: 'test-file',
       });
-      
+
       expect(filename).toBe('test-file.md');
     });
   });

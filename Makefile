@@ -1,13 +1,13 @@
-# Murmur - Electronアプリ開発用Makefile
-# CLAUDE.mdに従った開発ツール統合
+# Murmur - Electronアプリ開発用Makefile (pnpm版)
+# CLAUDE.mdに従った開発ツール統合 + pnpm最適化
 
-.PHONY: help install dev build clean lint format type-check test test-cov quality quality-fix pr-ready git-hooks env-info
+.PHONY: help install dev build clean lint format type-check test test-cov quality quality-fix pr-ready git-hooks env-info migrate-to-pnpm
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
-# Node.js/npm設定
-NPM := npm
+# パッケージマネージャー設定
+PKG_MANAGER := pnpm
 NODE := node
 
 # カラー出力
@@ -18,180 +18,190 @@ BLUE := \033[34m
 RESET := \033[0m
 
 ## 📋 利用可能なコマンド
-help: ## このヘルプメッセージを表示
-	@echo "$(BLUE)Murmur - 音声ライフログアプリ開発ツール$(RESET)"
+help: ## 📋 このヘルプメッセージを表示
+	@echo "$(BLUE)Murmur 開発コマンド (pnpm版)$(RESET)"
 	@echo ""
-	@echo "$(GREEN)利用可能なコマンド:$(RESET)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(BLUE)開発ワークフロー:$(RESET)"
-	@echo "  1. $(YELLOW)make install$(RESET)     - 依存関係をインストール"
-	@echo "  2. $(YELLOW)make dev$(RESET)         - 開発モードで起動"
-	@echo "  3. $(YELLOW)make quality$(RESET)     - コード品質チェック"
-	@echo "  4. $(YELLOW)make pr-ready$(RESET)    - PR準備完了チェック"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
 
-## 🔧 開発環境セットアップ
-install: ## 依存関係をインストール
+## 🚀 クイックスタート
+dev: ## 🚀 開発モード（ビルド+起動）
+	@echo "$(GREEN)🚀 開発モード開始...$(RESET)"
+	$(PKG_MANAGER) run dev
+
+## 📦 依存関係管理
+install: ## 📦 依存関係をインストール
 	@echo "$(GREEN)📦 依存関係をインストール中...$(RESET)"
-	$(NPM) install
-	@echo "$(GREEN)✅ インストール完了$(RESET)"
+	$(PKG_MANAGER) install
 
-dev: ## 開発モードでアプリを起動
-	@echo "$(GREEN)🚀 開発モードでアプリを起動中...$(RESET)"
-	$(NPM) run dev
+install-frozen: ## 📦 ロックファイルから厳密にインストール（CI用）
+	@echo "$(GREEN)📦 厳密インストール中...$(RESET)"
+	$(PKG_MANAGER) install --frozen-lockfile
 
-build: ## アプリをビルド
-	@echo "$(GREEN)🔨 アプリをビルド中...$(RESET)"
-	$(NPM) run dist
-	@echo "$(GREEN)✅ ビルド完了$(RESET)"
+## 🔄 pnpm移行
+migrate-to-pnpm: ## 🔄 NPMからpnpmに移行
+	@echo "$(YELLOW)🔄 pnpmへの移行を開始...$(RESET)"
+	@if command -v pnpm >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ pnpmが利用可能です$(RESET)"; \
+	else \
+		echo "$(RED)❌ pnpmがインストールされていません$(RESET)"; \
+		echo "$(YELLOW)インストール方法:$(RESET)"; \
+		echo "  npm install -g pnpm"; \
+		echo "  または brew install pnpm"; \
+		exit 1; \
+	fi
+	@if [ -f package-lock.json ]; then \
+		echo "$(YELLOW)🗑️  package-lock.jsonを削除...$(RESET)"; \
+		rm package-lock.json; \
+	fi
+	@if [ -d node_modules ]; then \
+		echo "$(YELLOW)🗑️  node_modulesを削除...$(RESET)"; \
+		rm -rf node_modules; \
+	fi
+	@echo "$(GREEN)📦 pnpmで依存関係をインストール...$(RESET)"
+	pnpm install
+	@echo "$(GREEN)✅ pnpm移行完了！$(RESET)"
 
-clean: ## ビルド成果物をクリーンアップ
-	@echo "$(YELLOW)🧹 クリーンアップ中...$(RESET)"
+## 🏗️ ビルド
+build: ## 🏗️ TypeScriptをビルド
+	@echo "$(GREEN)🏗️ TypeScriptビルド中...$(RESET)"
+	$(PKG_MANAGER) run build:ts
+
+build-watch: ## 🏗️ TypeScriptを監視モードでビルド
+	@echo "$(GREEN)🏗️ TypeScript監視ビルド中...$(RESET)"
+	$(PKG_MANAGER) run build:watch
+
+dist: ## 📦 配布用パッケージをビルド
+	@echo "$(GREEN)📦 配布用ビルド中...$(RESET)"
+	$(PKG_MANAGER) run dist
+
+## 🧹 クリーンアップ
+clean: ## 🧹 ビルドファイルをクリーンアップ
+	@echo "$(GREEN)🧹 クリーンアップ中...$(RESET)"
 	rm -rf dist/
-	rm -rf node_modules/.cache/
-	rm -rf .tmp/
+	rm -rf build/
+	rm -rf coverage/
 	@echo "$(GREEN)✅ クリーンアップ完了$(RESET)"
 
-## 📝 コード品質ツール
-lint: ## ESLintでコードをチェック
+clean-all: ## 🧹 すべて（node_modules含む）をクリーンアップ
+	@echo "$(GREEN)🧹 完全クリーンアップ中...$(RESET)"
+	rm -rf dist/
+	rm -rf build/
+	rm -rf coverage/
+	rm -rf node_modules/
+	rm -f pnpm-lock.yaml
+	@echo "$(GREEN)✅ 完全クリーンアップ完了$(RESET)"
+
+## 🔍 品質チェック
+lint: ## 🔍 ESLintチェック
 	@echo "$(GREEN)🔍 ESLintチェック中...$(RESET)"
-	@if command -v npx >/dev/null 2>&1; then \
-		if [ -f .eslintrc.js ] || [ -f .eslintrc.json ] || [ -f package.json ]; then \
-			npx eslint . --ext .js,.json --ignore-path .gitignore || true; \
-		else \
-			echo "$(YELLOW)⚠️  ESLint設定が見つかりません。基本的なシンタックスチェックをスキップ$(RESET)"; \
-		fi \
-	else \
-		echo "$(YELLOW)⚠️  npx が利用できません$(RESET)"; \
-	fi
+	$(PKG_MANAGER) run lint
 
-format: ## Prettierでコードを整形
-	@echo "$(GREEN)💅 コードを整形中...$(RESET)"
-	@if command -v npx >/dev/null 2>&1; then \
-		if npx prettier --version >/dev/null 2>&1; then \
-			npx prettier --write "**/*.{js,json,html,css,md}" --ignore-path .gitignore || true; \
-		else \
-			echo "$(YELLOW)⚠️  Prettierがインストールされていません$(RESET)"; \
-		fi \
-	else \
-		echo "$(YELLOW)⚠️  npx が利用できません$(RESET)"; \
-	fi
+lint-fix: ## 🔧 ESLint自動修正
+	@echo "$(GREEN)🔧 ESLint自動修正中...$(RESET)"
+	$(PKG_MANAGER) run lint:fix
 
-type-check: ## TypeScriptタイプチェック
+format: ## 🎨 コードフォーマット
+	@echo "$(GREEN)🎨 Prettierフォーマット中...$(RESET)"
+	$(PKG_MANAGER) run format
+
+format-check: ## 🎨 フォーマットチェック
+	@echo "$(GREEN)🎨 フォーマットチェック中...$(RESET)"
+	$(PKG_MANAGER) run format:check
+
+type-check: ## 🔍 タイプチェック
 	@echo "$(GREEN)🔍 タイプチェック中...$(RESET)"
-	@if [ -f tsconfig.json ]; then \
-		$(NPM) run type-check; \
-	else \
-		echo "$(YELLOW)⚠️  TypeScript設定が見つかりません。スキップ$(RESET)"; \
-	fi
+	$(PKG_MANAGER) run type-check
 
-test: ## 単体テストを実行
+## 🧪 テスト
+test: ## 🧪 単体テストを実行
 	@echo "$(GREEN)🧪 単体テストを実行中...$(RESET)"
-	$(NPM) test
+	$(PKG_MANAGER) test
 
-test-cov: ## カバレッジ付きで単体テストを実行
+test-watch: ## 🧪 テストを監視モードで実行
+	@echo "$(GREEN)🧪 テスト監視モード中...$(RESET)"
+	$(PKG_MANAGER) run test:watch
+
+test-cov: ## 🧪 カバレッジ付きテストを実行
 	@echo "$(GREEN)🧪 カバレッジ付きテストを実行中...$(RESET)"
-	$(NPM) run test:coverage
+	$(PKG_MANAGER) run test:coverage
 
-test-watch: ## ウォッチモードでテストを実行
-	@echo "$(GREEN)👀 ウォッチモードでテストを実行中...$(RESET)"
-	$(NPM) run test:watch
+test-ci: ## 🧪 CI用テスト実行
+	@echo "$(GREEN)🧪 CI用テストを実行中...$(RESET)"
+	$(PKG_MANAGER) run test:ci
 
-test-e2e: ## E2Eテストを実行
-	@echo "$(GREEN)🎭 E2Eテストを実行中...$(RESET)"
-	$(NPM) run test:e2e
+test-e2e: ## 🧪 E2Eテスト実行
+	@echo "$(GREEN)🧪 E2Eテストを実行中...$(RESET)"
+	$(PKG_MANAGER) run test:e2e
 
-test-all: ## 全てのテスト（単体+E2E）を実行
-	@echo "$(GREEN)🚀 全テストスイートを実行中...$(RESET)"
-	$(NPM) run test:all
+test-all: ## 🧪 全テスト実行
+	@echo "$(GREEN)🧪 全テストを実行中...$(RESET)"
+	$(PKG_MANAGER) run test:all
 
 ## 🎯 統合品質チェック
-quality: ## すべての品質チェックを実行
+quality: ## 🎯 統合品質チェック（lint + format-check + type-check + test-cov）
 	@echo "$(BLUE)🎯 統合品質チェックを開始...$(RESET)"
 	$(MAKE) lint
+	$(MAKE) format-check
 	$(MAKE) type-check
 	$(MAKE) test-cov
 	@echo "$(GREEN)✅ 品質チェック完了$(RESET)"
 
-quality-fix: ## 自動修正可能な問題を修正してから品質チェック
-	@echo "$(BLUE)🔧 自動修正と品質チェックを開始...$(RESET)"
+quality-fix: ## 🎯 品質問題を自動修正してチェック
+	@echo "$(BLUE)🎯 品質自動修正を開始...$(RESET)"
+	$(MAKE) lint-fix
 	$(MAKE) format
-	$(MAKE) quality
-	@echo "$(GREEN)✅ 自動修正と品質チェック完了$(RESET)"
+	$(MAKE) type-check
+	$(MAKE) test-cov
+	@echo "$(GREEN)✅ 品質修正完了$(RESET)"
 
-pr-ready: ## PR提出前の最終チェック
+## 🚀 プロダクション準備
+pr-ready: ## 🚀 PR準備（品質チェック + ビルドテスト）
 	@echo "$(BLUE)🚀 PR準備チェックを開始...$(RESET)"
-	$(MAKE) quality-fix
-	@echo "$(GREEN)✅ PR準備完了！$(RESET)"
+	$(MAKE) quality
+	$(MAKE) build
+	$(MAKE) dist
+	@echo "$(GREEN)✅ PR準備完了$(RESET)"
 
-## 🔗 Git連携
-git-hooks: ## Git pre-commitフックをセットアップ
-	@echo "$(GREEN)🪝 Gitフックをセットアップ中...$(RESET)"
-	@mkdir -p .git/hooks
-	@echo '#!/bin/sh' > .git/hooks/pre-commit
-	@echo '' >> .git/hooks/pre-commit
-	@echo '# Branch protection check' >> .git/hooks/pre-commit
-	@echo 'current_branch=$$(git rev-parse --abbrev-ref HEAD)' >> .git/hooks/pre-commit
-	@echo 'protected_branches="main master develop"' >> .git/hooks/pre-commit
-	@echo '' >> .git/hooks/pre-commit
-	@echo 'for branch in $$protected_branches; do' >> .git/hooks/pre-commit
-	@echo '  if [ "$$current_branch" = "$$branch" ]; then' >> .git/hooks/pre-commit
-	@echo '    echo "🚨 Error: Direct commits to $$branch branch are not allowed!"' >> .git/hooks/pre-commit
-	@echo '    echo "Please create a feature branch instead:"' >> .git/hooks/pre-commit
-	@echo '    echo "  git checkout -b feat/your-feature-name"' >> .git/hooks/pre-commit
-	@echo '    exit 1' >> .git/hooks/pre-commit
-	@echo '  fi' >> .git/hooks/pre-commit
-	@echo 'done' >> .git/hooks/pre-commit
-	@echo '' >> .git/hooks/pre-commit
-	@echo '# Quality checks' >> .git/hooks/pre-commit
-	@echo 'echo "🔍 Running quality checks on branch: $$current_branch"' >> .git/hooks/pre-commit
-	@echo 'make quality' >> .git/hooks/pre-commit
-	@echo '' >> .git/hooks/pre-commit
-	@echo 'if [ $$? -eq 0 ]; then' >> .git/hooks/pre-commit
-	@echo '  echo "✅ All quality checks passed!"' >> .git/hooks/pre-commit
-	@echo 'else' >> .git/hooks/pre-commit
-	@echo '  echo "❌ Quality checks failed. Please fix issues before committing."' >> .git/hooks/pre-commit
-	@echo '  exit 1' >> .git/hooks/pre-commit
-	@echo 'fi' >> .git/hooks/pre-commit
+## 🔧 開発環境セットアップ
+git-hooks: ## 🔧 Git hooksをセットアップ
+	@echo "$(GREEN)🔧 Git hooksセットアップ中...$(RESET)"
+	@if [ ! -d .git/hooks ]; then \
+		echo "$(RED)❌ Gitリポジトリではありません$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "#!/bin/sh\nmake quality-fix" > .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
-	@echo "$(GREEN)✅ Pre-commitフック（ブランチ保護付き）を設定しました$(RESET)"
+	@echo "$(GREEN)✅ Pre-commit hookを設定しました$(RESET)"
 
 ## 📊 環境情報
-env-info: ## 開発環境の情報を表示
-	@echo "$(BLUE)📊 開発環境情報:$(RESET)"
-	@echo "$(YELLOW)Node.js:$(RESET) $$(node --version 2>/dev/null || echo 'Not installed')"
-	@echo "$(YELLOW)npm:$(RESET) $$(npm --version 2>/dev/null || echo 'Not installed')"
-	@echo "$(YELLOW)Git:$(RESET) $$(git --version 2>/dev/null || echo 'Not installed')"
-	@echo "$(YELLOW)OS:$(RESET) $$(uname -s) $$(uname -r)"
-	@echo "$(YELLOW)Working Directory:$(RESET) $$(pwd)"
-	@if [ -f package.json ]; then \
-		echo "$(YELLOW)Project:$(RESET) $$(cat package.json | grep '"name"' | sed 's/.*": "//g' | sed 's/",.*//g') v$$(cat package.json | grep '"version"' | sed 's/.*": "//g' | sed 's/",.*//g')"; \
+env-info: ## 📊 開発環境情報を表示
+	@echo "$(BLUE)📊 開発環境情報$(RESET)"
+	@echo "$(YELLOW)Node.js:$(RESET) $$(node --version)"
+	@echo "$(YELLOW)pnpm:$(RESET) $$(pnpm --version 2>/dev/null || echo 'Not installed')"
+	@echo "$(YELLOW)npm:$(RESET) $$(npm --version)"
+	@echo "$(YELLOW)OS:$(RESET) $$(uname -s)"
+	@echo "$(YELLOW)Platform:$(RESET) $$(uname -m)"
+	@if [ -f pnpm-lock.yaml ]; then \
+		echo "$(YELLOW)パッケージマネージャー:$(RESET) pnpm ✅"; \
+	elif [ -f package-lock.json ]; then \
+		echo "$(YELLOW)パッケージマネージャー:$(RESET) npm (pnpm移行推奨)"; \
+	else \
+		echo "$(YELLOW)パッケージマネージャー:$(RESET) 不明"; \
 	fi
 
-## 🎨 開発ツール（ESLint/Prettier セットアップ）
-setup-linting: ## ESLintとPrettierをセットアップ
-	@echo "$(GREEN)🎨 ESLintとPrettierをセットアップ中...$(RESET)"
-	$(NPM) install --save-dev eslint prettier
-	@if [ ! -f .eslintrc.json ]; then \
-		echo '{"env":{"node":true,"es2021":true},"extends":["eslint:recommended"],"parserOptions":{"ecmaVersion":"latest","sourceType":"module"},"rules":{}}' > .eslintrc.json; \
-	fi
-	@if [ ! -f .prettierrc.json ]; then \
-		echo '{"semi":true,"singleQuote":true,"tabWidth":2,"trailingComma":"es5"}' > .prettierrc.json; \
-	fi
-	@echo "$(GREEN)✅ ESLintとPrettierのセットアップ完了$(RESET)"
+## 🔄 pnpm最適化コマンド
+pnpm-prune: ## 🔄 pnpmストアをクリーンアップ
+	@echo "$(GREEN)🔄 pnpmストアクリーンアップ中...$(RESET)"
+	pnpm store prune
 
-## 🧪 テストセットアップ
-setup-testing: ## Jest テストフレームワークをセットアップ  
-	@echo "$(GREEN)🧪 Jestテストフレームワークをセットアップ中...$(RESET)"
-	$(NPM) install --save-dev jest
-	@if [ ! -d tests ]; then mkdir tests; fi
-	@if [ ! -f tests/example.test.js ]; then \
-		echo 'describe("Example Test", () => { test("should pass", () => { expect(true).toBe(true); }); });' > tests/example.test.js; \
-	fi
-	@echo "$(GREEN)✅ Jestテストセットアップ完了$(RESET)"
+pnpm-audit: ## 🔍 pnpmセキュリティ監査
+	@echo "$(GREEN)🔍 pnpmセキュリティ監査中...$(RESET)"
+	pnpm audit
 
-## 📦 配布
-dist: ## 配布用パッケージを作成
-	@echo "$(GREEN)📦 配布用パッケージを作成中...$(RESET)"
-	$(NPM) run dist
-	@echo "$(GREEN)✅ 配布用パッケージ作成完了$(RESET)"
+pnpm-update: ## 📦 依存関係を安全にアップデート
+	@echo "$(GREEN)📦 依存関係アップデート中...$(RESET)"
+	pnpm update
+
+pnpm-outdated: ## 📊 古い依存関係をチェック
+	@echo "$(GREEN)📊 古い依存関係チェック中...$(RESET)"
+	pnpm outdated

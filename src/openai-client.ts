@@ -64,7 +64,7 @@ class OpenAIClient {
     if (!validateApiKey(apiKey)) {
       throw new Error('Invalid OpenAI API key format');
     }
-    
+
     this.apiKey = apiKey;
     this.baseURL = 'https://api.openai.com/v1';
     this.rateLimiter = new RateLimiter(10, 60000); // 10 calls per minute
@@ -82,14 +82,17 @@ class OpenAIClient {
   /**
    * Transcribe audio using Whisper API
    */
-  async transcribeAudio(audioFilePath: string, options: TranscriptionOptions = {}): Promise<TranscriptionResult> {
+  async transcribeAudio(
+    audioFilePath: string,
+    options: TranscriptionOptions = {}
+  ): Promise<TranscriptionResult> {
     try {
       // Check rate limit
       if (!this.rateLimiter.isAllowed()) {
         const waitTime = this.rateLimiter.getTimeUntilReset();
         return {
           success: false,
-          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
+          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`,
         };
       }
       if (!(await fs.pathExists(audioFilePath))) {
@@ -115,8 +118,8 @@ class OpenAIClient {
       }
 
       const response: AxiosResponse<OpenAITranscriptionResponse> = await this.client.post(
-        '/audio/transcriptions', 
-        formData, 
+        '/audio/transcriptions',
+        formData,
         {
           headers: {
             ...formData.getHeaders(),
@@ -162,10 +165,12 @@ class OpenAIClient {
         const waitTime = this.rateLimiter.getTimeUntilReset();
         return {
           success: false,
-          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
+          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`,
         };
       }
-      const prompt = options.prompt || `
+      const prompt =
+        options.prompt ||
+        `
 以下の音声テキストを読みやすく整形し、構造化してください。
 要約、メインポイント、関連タグを含めてMarkdown形式で出力してください。
 
@@ -198,12 +203,15 @@ ${text}
         },
       ];
 
-      const response: AxiosResponse<OpenAICompletionResponse> = await this.client.post('/chat/completions', {
-        model: options.model || 'gpt-3.5-turbo',
-        messages,
-        temperature: options.temperature || 0.7,
-        max_tokens: options.max_tokens || 2000,
-      });
+      const response: AxiosResponse<OpenAICompletionResponse> = await this.client.post(
+        '/chat/completions',
+        {
+          model: options.model || 'gpt-3.5-turbo',
+          messages,
+          temperature: options.temperature || 0.7,
+          max_tokens: options.max_tokens || 2000,
+        }
+      );
 
       const formattedText = response.data.choices[0].message.content;
 

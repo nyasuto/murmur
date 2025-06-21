@@ -81,7 +81,7 @@ class Logger {
         .map(file => ({
           name: file,
           path: path.join(this.logDir, file),
-          date: file.replace('murmur-', '').replace('.log', '')
+          date: file.replace('murmur-', '').replace('.log', ''),
         }))
         .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -101,13 +101,18 @@ class Logger {
   /**
    * Format log entry
    */
-  private formatLogEntry(level: string, message: string, data: any = null, error: Error | null = null): string {
+  private formatLogEntry(
+    level: string,
+    message: string,
+    data: any = null,
+    error: Error | null = null
+  ): string {
     const entry: LogEntry = {
       timestamp: this.getCurrentTimestamp(),
       level: level.toUpperCase(),
       message,
       process: process.type || 'main',
-      pid: process.pid
+      pid: process.pid,
     };
 
     if (data) {
@@ -118,7 +123,7 @@ class Logger {
       entry.error = {
         name: error.name,
         message: error.message,
-        stack: error.stack || ''
+        stack: error.stack || '',
       };
     }
 
@@ -128,7 +133,12 @@ class Logger {
   /**
    * Write log entry to file
    */
-  private async writeLog(level: string, message: string, data: any = null, error: Error | null = null): Promise<void> {
+  private async writeLog(
+    level: string,
+    message: string,
+    data: any = null,
+    error: Error | null = null
+  ): Promise<void> {
     if (!this.initialized) {
       console.warn('Logger not initialized, skipping log entry');
       return;
@@ -137,7 +147,7 @@ class Logger {
     try {
       const logEntry = this.formatLogEntry(level, message, data, error);
       await fs.appendFile(this.logFile, logEntry);
-      
+
       // Also log to console in development
       if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
         const consoleMessage = `[${level.toUpperCase()}] ${message}`;
@@ -194,12 +204,18 @@ class Logger {
   /**
    * Log API call
    */
-  async apiCall(service: string, method: string, duration: number | null = null, success: boolean = true, error: Error | null = null): Promise<void> {
+  async apiCall(
+    service: string,
+    method: string,
+    duration: number | null = null,
+    success: boolean = true,
+    error: Error | null = null
+  ): Promise<void> {
     const data: APICallData = {
       service,
       method,
       duration,
-      success
+      success,
     };
 
     if (success) {
@@ -228,7 +244,7 @@ class Logger {
       const content = await fs.readFile(this.logFile, 'utf8');
       const logLines = content.trim().split('\n');
       const recentLines = logLines.slice(-lines);
-      
+
       return recentLines.map(line => {
         try {
           return JSON.parse(line) as LogEntry;

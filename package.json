@@ -15,8 +15,12 @@
     "lint:fix": "eslint . --ext .js,.ts --ignore-path .gitignore --fix",
     "format": "prettier --write \"**/*.{js,ts,json,html,css,md}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{js,ts,json,html,css,md}\" --ignore-path .gitignore",
-    "test": "echo \"Tests will be added in future iterations\" && exit 0",
-    "test:coverage": "echo \"Test coverage will be added in future iterations\" && exit 0"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:ci && npm run test:e2e"
   },
   "keywords": [
     "electron",
@@ -31,12 +35,19 @@
   "license": "MIT",
   "devDependencies": {
     "@electron/typescript-definitions": "^9.1.2",
+    "@jest/globals": "^30.0.2",
+    "@playwright/test": "^1.53.1",
+    "@testing-library/jest-dom": "^6.6.3",
     "@types/electron": "^1.4.38",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.0.3",
     "electron": "^36.5.0",
     "electron-builder": "^26.0.12",
     "eslint": "^9.29.0",
+    "jest": "^30.0.2",
+    "playwright": "^1.53.1",
     "prettier": "^3.1.0",
+    "ts-jest": "^29.4.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {

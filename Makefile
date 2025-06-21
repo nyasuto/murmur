@@ -85,29 +85,32 @@ type-check: ## TypeScriptタイプチェック
 		echo "$(YELLOW)⚠️  TypeScript設定が見つかりません。スキップ$(RESET)"; \
 	fi
 
-test: ## テストを実行
-	@echo "$(GREEN)🧪 テストを実行中...$(RESET)"
-	@if [ -f package.json ] && grep -q '"test"' package.json; then \
-		$(NPM) test || true; \
-	else \
-		echo "$(YELLOW)⚠️  テストスクリプトが設定されていません$(RESET)"; \
-	fi
+test: ## 単体テストを実行
+	@echo "$(GREEN)🧪 単体テストを実行中...$(RESET)"
+	$(NPM) test
 
-test-cov: ## カバレッジ付きでテストを実行
+test-cov: ## カバレッジ付きで単体テストを実行
 	@echo "$(GREEN)🧪 カバレッジ付きテストを実行中...$(RESET)"
-	@if [ -f package.json ] && grep -q '"test:coverage"' package.json; then \
-		$(NPM) run test:coverage || true; \
-	else \
-		echo "$(YELLOW)⚠️  カバレッジテストスクリプトが設定されていません$(RESET)"; \
-		$(MAKE) test; \
-	fi
+	$(NPM) run test:coverage
+
+test-watch: ## ウォッチモードでテストを実行
+	@echo "$(GREEN)👀 ウォッチモードでテストを実行中...$(RESET)"
+	$(NPM) run test:watch
+
+test-e2e: ## E2Eテストを実行
+	@echo "$(GREEN)🎭 E2Eテストを実行中...$(RESET)"
+	$(NPM) run test:e2e
+
+test-all: ## 全てのテスト（単体+E2E）を実行
+	@echo "$(GREEN)🚀 全テストスイートを実行中...$(RESET)"
+	$(NPM) run test:all
 
 ## 🎯 統合品質チェック
 quality: ## すべての品質チェックを実行
 	@echo "$(BLUE)🎯 統合品質チェックを開始...$(RESET)"
 	$(MAKE) lint
 	$(MAKE) type-check
-	$(MAKE) test
+	$(MAKE) test-cov
 	@echo "$(GREEN)✅ 品質チェック完了$(RESET)"
 
 quality-fix: ## 自動修正可能な問題を修正してから品質チェック

@@ -29,10 +29,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: pnpmをインストール
+      run: npm install -g pnpm
+      
     - name: 依存関係をインストール
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: 環境情報を表示
       run: make env-info
@@ -40,7 +43,7 @@ jobs:
     - name: TypeScript型チェック (厳格)
       run: |
         echo "🔍 TypeScript strict mode compilation check"
-        npm run type-check
+        pnpm run type-check
         
     - name: ESLint (厳格)
       run: |
@@ -67,10 +70,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: pnpmをインストール
+      run: npm install -g pnpm
+      
     - name: 依存関係をインストール
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: 統合品質チェック (厳格)
       run: |
@@ -102,15 +108,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: pnpmをインストール
+      run: npm install -g pnpm
+      
     - name: 依存関係をインストール
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: 依存関係脆弱性スキャン (厳格)
       run: |
         echo "🔍 Dependency vulnerability scan"
-        npm audit --audit-level=moderate
+        pnpm audit --audit-level=moderate
         
     - name: License compliance check
       run: |
@@ -143,15 +152,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: pnpmをインストール
+      run: npm install -g pnpm
+      
     - name: 依存関係をインストール
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: TypeScript compilation
       run: |
         echo "🔧 TypeScript compilation check"
-        npm run type-check
+        pnpm run type-check
         
     - name: アプリケーションビルド
       run: |
@@ -187,10 +199,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: pnpmをインストール
+      run: npm install -g pnpm
+      
     - name: 依存関係をインストール
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: PR最終品質チェック
       run: |

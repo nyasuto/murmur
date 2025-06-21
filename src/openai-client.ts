@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 const FormData = require('form-data');
 import * as fs from 'fs-extra';
 import { TranscriptionOptions, TranscriptionResult } from './types';
+import { RateLimiter, validateApiKey } from './security-utils';
 
 interface OpenAITranscriptionResponse {
   text: string;
@@ -56,10 +57,17 @@ class OpenAIClient {
   private readonly apiKey: string;
   private readonly baseURL: string;
   private readonly client: AxiosInstance;
+  private readonly rateLimiter: RateLimiter;
 
   constructor(apiKey: string) {
+    // Validate API key format
+    if (!validateApiKey(apiKey)) {
+      throw new Error('Invalid OpenAI API key format');
+    }
+    
     this.apiKey = apiKey;
     this.baseURL = 'https://api.openai.com/v1';
+    this.rateLimiter = new RateLimiter(10, 60000); // 10 calls per minute
 
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -76,6 +84,14 @@ class OpenAIClient {
    */
   async transcribeAudio(audioFilePath: string, options: TranscriptionOptions = {}): Promise<TranscriptionResult> {
     try {
+      // Check rate limit
+      if (!this.rateLimiter.isAllowed()) {
+        const waitTime = this.rateLimiter.getTimeUntilReset();
+        return {
+          success: false,
+          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
+        };
+      }
       if (!(await fs.pathExists(audioFilePath))) {
         throw new Error(`Audio file not found: ${audioFilePath}`);
       }
@@ -141,6 +157,14 @@ class OpenAIClient {
    */
   async formatText(text: string, options: FormatTextOptions = {}): Promise<FormatTextResult> {
     try {
+      // Check rate limit
+      if (!this.rateLimiter.isAllowed()) {
+        const waitTime = this.rateLimiter.getTimeUntilReset();
+        return {
+          success: false,
+          error: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
+        };
+      }
       const prompt = options.prompt || `
 以下の音声テキストを読みやすく整形し、構造化してください。
 要約、メインポイント、関連タグを含めてMarkdown形式で出力してください。

@@ -27,7 +27,16 @@ afterAll(() => {
 export const createTempDir = async (): Promise<string> => {
   // Use home directory for test temp files to avoid /var restrictions
   const baseTmpDir = path.join(os.homedir(), '.tmp');
-  await fs.ensureDir(baseTmpDir); // Ensure base temp directory exists
+  
+  try {
+    await fs.ensureDir(baseTmpDir); // Ensure base temp directory exists
+  } catch (error) {
+    // If home directory .tmp fails, fall back to OS temp directory
+    console.warn('Failed to create temp dir in home, using OS temp:', error);
+    const fallbackDir = path.join(os.tmpdir(), 'murmur-test-' + Date.now());
+    await fs.ensureDir(fallbackDir);
+    return fallbackDir;
+  }
   
   const tempDir = path.join(baseTmpDir, 'murmur-test', Date.now().toString());
   await fs.ensureDir(tempDir);
@@ -36,7 +45,13 @@ export const createTempDir = async (): Promise<string> => {
 
 export const cleanupTempDir = async (tempDir: string): Promise<void> => {
   if (await fs.pathExists(tempDir)) {
-    await fs.remove(tempDir);
+    try {
+      await fs.remove(tempDir);
+    } catch (error) {
+      // On some systems, removal might fail due to timing or permissions
+      // Log the error but don't fail the test
+      console.warn('Failed to cleanup temp directory:', tempDir, error);
+    }
   }
 };
 

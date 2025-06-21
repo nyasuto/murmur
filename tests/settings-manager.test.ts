@@ -92,8 +92,8 @@ describe('SettingsManager', () => {
 
   describe('settings management', () => {
     test('should load and save settings correctly', async () => {
-      // Use a safe path that passes security validation
-      const safePath = path.join(require('os').homedir(), 'Documents', 'test-vault');
+      // Use a safe path that passes security validation within our temp directory
+      const safePath = path.join(tempDir, 'Documents', 'test-vault');
       await fs.ensureDir(safePath);
       
       const testSettings: Partial<Settings> = {
@@ -145,7 +145,7 @@ describe('SettingsManager', () => {
     });
 
     test('should reject non-existent paths', async () => {
-      const nonExistentPath = path.join(require('os').homedir(), 'definitely-does-not-exist-test-path-12345');
+      const nonExistentPath = path.join(tempDir, 'definitely-does-not-exist-test-path-12345');
       const result = await settingsManager.validateObsidianVault(nonExistentPath);
       
       expect(result.valid).toBe(false);

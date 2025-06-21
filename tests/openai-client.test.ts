@@ -130,6 +130,9 @@ describe('OpenAIClient', () => {
     });
 
     test('should handle network errors', async () => {
+      // Ensure the file exists so we get to the network call
+      expect(await fs.pathExists(mockAudioFile)).toBe(true);
+      
       const networkError = {
         code: 'ENOTFOUND',
         message: 'Network error'

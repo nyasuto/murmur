@@ -42,7 +42,7 @@ dev: ## 開発モードでアプリを起動
 
 build: ## アプリをビルド
 	@echo "$(GREEN)🔨 アプリをビルド中...$(RESET)"
-	$(NPM) run build
+	$(NPM) run dist
 	@echo "$(GREEN)✅ ビルド完了$(RESET)"
 
 clean: ## ビルド成果物をクリーンアップ

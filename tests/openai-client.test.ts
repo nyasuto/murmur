@@ -69,6 +69,10 @@ describe('OpenAIClient', () => {
     });
 
     test('should transcribe audio successfully', async () => {
+      // Ensure the mock file actually exists and has content
+      await fs.ensureFile(mockAudioFile);
+      await fs.writeFile(mockAudioFile, Buffer.from('fake audio data'));
+      
       const mockResponse = {
         data: {
           text: 'Hello, this is a test transcription.',
@@ -82,6 +86,14 @@ describe('OpenAIClient', () => {
         language: 'en',
         temperature: 0
       });
+
+      // Debug information for CI
+      if (!result.success) {
+        console.error('Test failed with error:', result.error);
+        console.error('Mock file exists:', await fs.pathExists(mockAudioFile));
+        console.error('Mock file stats:', await fs.stat(mockAudioFile).catch(e => e.message));
+        console.error('Mock axios called:', mockAxiosInstance.post.mock.calls.length);
+      }
 
       expect(result.success).toBe(true);
       expect(result.text).toBe('Hello, this is a test transcription.');

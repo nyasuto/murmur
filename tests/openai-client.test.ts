@@ -65,11 +65,10 @@ describe('OpenAIClient', () => {
     let mockAudioFile: string;
 
     beforeEach(async () => {
-      // Ensure temp directory exists before creating the file
-      await fs.ensureDir(tempDir);
+      // Use outputFile which creates directories automatically, preventing race conditions
       mockAudioFile = path.join(tempDir, 'test-audio.webm');
       // Create the mock audio file with proper binary data
-      await fs.writeFile(mockAudioFile, Buffer.from('fake audio data'));
+      await fs.outputFile(mockAudioFile, Buffer.from('fake audio data'));
       // Verify the file was actually created
       const exists = await fs.pathExists(mockAudioFile);
       if (!exists) {

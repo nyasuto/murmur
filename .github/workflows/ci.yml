@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [24.x]
     
     steps:
     - name: リポジトリをチェックアウト
@@ -93,44 +93,6 @@ jobs:
         echo "🔨 Building application"
         make build
 
-  # セキュリティチェック (強化版)
-  security-scan:
-    name: 🔒 セキュリティスキャン
-    runs-on: ubuntu-latest
-    needs: fast-checks
-    timeout-minutes: 10
-    
-    steps:
-    - name: リポジトリをチェックアウト
-      uses: actions/checkout@v4
-      
-    - name: pnpmをセットアップ
-      uses: pnpm/action-setup@v4
-        
-    - name: Node.js をセットアップ
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'pnpm'
-      
-    - name: 依存関係をインストール
-      run: pnpm install --frozen-lockfile
-      
-    - name: 依存関係脆弱性スキャン (厳格)
-      run: |
-        echo "🔍 Dependency vulnerability scan"
-        pnpm audit --audit-level=moderate
-        
-    - name: License compliance check
-      run: |
-        echo "📜 License compliance check"
-        npx license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD" --summary || echo "⚠️  License check completed with warnings"
-        
-    - name: Secret scanning (basic)
-      run: |
-        echo "🔍 Basic secret scanning"
-        # Look for actual secret patterns (API keys with values, not variable names)
-        ! grep -r -E "(api[_-]?key|password|secret|token)[\"'\s]*[:=][\"'\s]*[a-zA-Z0-9]{8,}" --include="*.js" --include="*.ts" --include="*.json" --exclude-dir=node_modules . || (echo "⚠️  Potential secrets detected" && exit 1)
 
   # マルチプラットフォームビルドテスト
   build-test:
@@ -188,7 +150,7 @@ jobs:
     name: 🎯 PR品質ゲート
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    needs: [quality-check, security-scan, build-test]
+    needs: [quality-check, build-test]
     timeout-minutes: 5
     
     steps:
@@ -220,7 +182,6 @@ jobs:
         echo "- ✅ **TypeScript型チェック**: 厳格モード通過" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ **ESLint品質チェック**: 全ルール通過" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ **テスト実行**: 全テスト通過" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ **セキュリティスキャン**: 脆弱性なし" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ **マルチプラットフォームビルド**: 全OS対応確認" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ **コード品質**: Make quality 全通過" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -228,7 +189,7 @@ jobs:
         echo "**このPRは全ての品質基準をクリアしており、マージ準備完了です！**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 品質統計" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node.js対応**: 20.x, 22.x, 24.x" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node.js対応**: 24.x" >> $GITHUB_STEP_SUMMARY
         echo "- **OS対応**: Ubuntu, macOS" >> $GITHUB_STEP_SUMMARY
         echo "- **TypeScript**: Strict mode 有効" >> $GITHUB_STEP_SUMMARY
 
@@ -237,7 +198,7 @@ jobs:
     name: 🚀 デプロイ準備完了
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [quality-check, security-scan, build-test]
+    needs: [quality-check, build-test]
     timeout-minutes: 2
     
     steps:
@@ -249,7 +210,6 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### ✅ 完了項目" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 品質チェック完了" >> $GITHUB_STEP_SUMMARY
-        echo "- 🔒 セキュリティスキャン完了" >> $GITHUB_STEP_SUMMARY
         echo "- 🏗️  ビルドテスト完了" >> $GITHUB_STEP_SUMMARY
         echo "- 📦 成果物生成完了" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

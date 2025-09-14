@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [24.x]
     
     steps:
     - name: リポジトリをチェックアウト
@@ -189,7 +189,7 @@ jobs:
         echo "**このPRは全ての品質基準をクリアしており、マージ準備完了です！**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 品質統計" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node.js対応**: 20.x, 22.x, 24.x" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node.js対応**: 24.x" >> $GITHUB_STEP_SUMMARY
         echo "- **OS対応**: Ubuntu, macOS" >> $GITHUB_STEP_SUMMARY
         echo "- **TypeScript**: Strict mode 有効" >> $GITHUB_STEP_SUMMARY
 

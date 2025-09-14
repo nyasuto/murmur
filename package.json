@@ -51,7 +51,7 @@
     "jest": "^30.0.4",
     "playwright": "^1.55.0",
     "prettier": "^3.1.0",
-    "ts-jest": "^29.4.0",
+    "ts-jest": "^29.4.1",
     "typescript": "^5.8.3"
   },
   "dependencies": {

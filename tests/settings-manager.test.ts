@@ -67,10 +67,9 @@ describe('SettingsManager', () => {
         auto_save_enabled: true,
       };
 
-      // Create legacy config file
+      // Create legacy config file using outputJson which creates directories automatically
       const legacyConfigPath = path.join(tempDir, '.murmur', 'config.json');
-      await fs.ensureDir(path.dirname(legacyConfigPath));
-      await fs.writeJson(legacyConfigPath, legacyConfig);
+      await fs.outputJson(legacyConfigPath, legacyConfig);
 
       // Verify the file was created
       expect(await fs.pathExists(legacyConfigPath)).toBe(true);

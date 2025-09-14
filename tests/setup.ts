@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
+import { mkdtemp } from 'node:fs/promises';
 
 // Global test setup
 beforeAll(() => {
@@ -25,22 +26,18 @@ afterAll(() => {
 
 // Helper functions for tests
 export const createTempDir = async (): Promise<string> => {
-  // Use home directory for test temp files to avoid /var restrictions
-  const baseTmpDir = path.join(os.homedir(), '.tmp');
-
+  // Use mkdtemp to create a unique temporary directory for each test
+  // This prevents race conditions when multiple Jest workers run in parallel
   try {
-    await fs.ensureDir(baseTmpDir); // Ensure base temp directory exists
+    // Try to use home directory for test temp files to avoid /var restrictions
+    const baseTmpDir = path.join(os.homedir(), '.tmp');
+    await fs.ensureDir(baseTmpDir);
+    return await mkdtemp(path.join(baseTmpDir, 'murmur-test-'));
   } catch (error) {
     // If home directory .tmp fails, fall back to OS temp directory
     console.warn('Failed to create temp dir in home, using OS temp:', error);
-    const fallbackDir = path.join(os.tmpdir(), 'murmur-test-' + Date.now());
-    await fs.ensureDir(fallbackDir);
-    return fallbackDir;
+    return await mkdtemp(path.join(os.tmpdir(), 'murmur-test-'));
   }
-
-  const tempDir = path.join(baseTmpDir, 'murmur-test', Date.now().toString());
-  await fs.ensureDir(tempDir);
-  return tempDir;
 };
 
 export const cleanupTempDir = async (tempDir: string): Promise<void> => {

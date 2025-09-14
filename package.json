@@ -38,7 +38,7 @@
     "@electron/typescript-definitions": "^9.1.2",
     "@jest/globals": "^30.0.4",
     "@playwright/test": "^1.55.0",
-    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/jest-dom": "^6.8.0",
     "@types/electron": "^1.4.38",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",

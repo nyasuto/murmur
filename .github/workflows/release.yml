@@ -34,7 +34,7 @@ jobs:
     
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Node.js をセットアップ
       uses: actions/setup-node@v4
@@ -74,7 +74,7 @@ jobs:
     
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: すべてのビルド成果物をダウンロード
       uses: actions/download-artifact@v4

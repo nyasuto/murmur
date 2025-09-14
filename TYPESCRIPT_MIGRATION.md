@@ -7,14 +7,12 @@ This document tracks the progress of migrating Murmur from JavaScript to TypeScr
 ### ✅ Phase 1: Infrastructure Setup (Completed)
 
 1. **TypeScript Environment**
-
    - ✅ TypeScript and dependencies installed
    - ✅ `tsconfig.json` configured with incremental migration settings
    - ✅ Package.json scripts updated for TypeScript
    - ✅ Makefile updated to include TypeScript type checking
 
 2. **Type Definitions Created**
-
    - ✅ `src/types/index.ts` - Core application types
    - ✅ `src/types/ipc.ts` - IPC communication types
    - ✅ Global window interface declarations

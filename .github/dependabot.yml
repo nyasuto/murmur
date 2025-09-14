@@ -8,6 +8,16 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "/"
+    assignees:
+      - "nyasuto"
+    reviewers:
+      - "nyasuto"
+    labels:
+      - "dependencies"
+      - "javascript"
     
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -17,3 +27,13 @@ updates:
       day: "monday"
       time: "10:00"
       timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "/"
+    assignees:
+      - "nyasuto"
+    reviewers:
+      - "nyasuto"
+    labels:
+      - "dependencies"
+      - "github-actions"

@@ -42,7 +42,7 @@
     "@types/electron": "^1.4.38",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.8.1",
+    "@types/node": "^24.9.1",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.1",
     "electron": "^38.3.0",

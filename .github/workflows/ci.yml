@@ -139,7 +139,7 @@ jobs:
         
     - name: ビルド成果物をアップロード (Linux)
       if: matrix.os == 'ubuntu-latest' && github.event_name == 'push'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: murmur-linux-build-${{ github.sha }}
         path: dist/

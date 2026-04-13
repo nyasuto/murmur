@@ -115,7 +115,7 @@ jobs:
         EOF
         
     - name: GitHubリリース作成
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ steps.release-notes.outputs.version }}
         name: Murmur ${{ steps.release-notes.outputs.version }}

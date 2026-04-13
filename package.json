@@ -35,7 +35,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.12.1",
   "devDependencies": {
-    "@electron/typescript-definitions": "^9.1.5",
+    "@electron/typescript-definitions": "^9.1.6",
     "@jest/globals": "^30.3.0",
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",

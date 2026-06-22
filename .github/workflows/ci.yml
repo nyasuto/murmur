@@ -23,7 +23,7 @@ jobs:
     
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       
     - name: pnpmをセットアップ
       uses: pnpm/action-setup@v5
@@ -64,7 +64,7 @@ jobs:
     
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       
     - name: pnpmをセットアップ
       uses: pnpm/action-setup@v5
@@ -108,7 +108,7 @@ jobs:
         
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       
     - name: pnpmをセットアップ
       uses: pnpm/action-setup@v5
@@ -155,7 +155,7 @@ jobs:
     
     steps:
     - name: リポジトリをチェックアウト
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       
     - name: pnpmをセットアップ
       uses: pnpm/action-setup@v5

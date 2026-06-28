@@ -34,6 +34,13 @@
   "author": "Your Name",
   "license": "MIT",
   "packageManager": "pnpm@10.12.1",
+  "pnpm": {
+    "overrides": {
+      "tar@<7.5.16": "^7.5.16",
+      "js-yaml@<4.2.0": "^4.2.0",
+      "@babel/core@<7.29.6": "^7.29.6"
+    }
+  },
   "devDependencies": {
     "@electron/typescript-definitions": "^9.1.6",
     "@jest/globals": "^30.4.1",

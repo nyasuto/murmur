@@ -52,7 +52,7 @@
     "@types/node": "^26.0.1",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.62.0",
-    "electron": "^42.4.1",
+    "electron": "^42.5.0",
     "electron-builder": "^26.15.3",
     "eslint": "^10.6.0",
     "jest": "^30.4.2",

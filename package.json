@@ -44,7 +44,7 @@
   "devDependencies": {
     "@electron/typescript-definitions": "^9.1.6",
     "@jest/globals": "^30.4.1",
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/electron": "^1.4.38",
     "@types/fs-extra": "^11.0.4",

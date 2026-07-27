@@ -27,8 +27,8 @@ importers:
         version: 11.3.6
     devDependencies:
       '@electron/typescript-definitions':
-        specifier: ^9.1.6
-        version: 9.1.6
+        specifier: ^9.2.0
+        version: 9.2.0
       '@jest/globals':
         specifier: ^30.4.1
         version: 30.4.1
@@ -347,8 +347,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@electron/typescript-definitions@9.1.6':
-    resolution: {integrity: sha512-UYhR6zFTCEDI7q9yxrI2qW/hlmwA3sc6bGnWlJ63JZ2B6wRsCqfW79mYrwWn1EMAuDw+b1bvN3nTcnOzQsVe2A==}
+  '@electron/typescript-definitions@9.2.0':
+    resolution: {integrity: sha512-cdPlWYA64qaQW+SzZxr6unqBj1tDU3RsUYY1uJRcMWXcbN0FaGjvrv2zVT91t/Lz4j4TLBTh7c12oND5qq/k2Q==}
     engines: {node: '>=20.9.0'}
     hasBin: true
 
@@ -1657,8 +1657,8 @@ packages:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
     engines: {node: 6.* || 8.* || >= 10.*}
 
-  get-east-asian-width@1.5.0:
-    resolution: {integrity: sha512-CQ+bEO+Tva/qlmw24dCejulK5pMzVnUOFOijVogd3KQs07HnRIgp8TGipvCCRT06xeYEbpbgwaCxglFyiuIcmA==}
+  get-east-asian-width@1.6.0:
+    resolution: {integrity: sha512-QRbvDIbx6YklUe6RxeTeleMR0yv3cYH6PsPZHcnVn7xv7zO1BHN8r0XETu8n6Ye3Q+ahtSarc3WgtNWmehIBfA==}
     engines: {node: '>=18'}
 
   get-intrinsic@1.3.0:
@@ -3457,7 +3457,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron/typescript-definitions@9.1.6':
+  '@electron/typescript-definitions@9.2.0':
     dependencies:
       '@types/node': 20.19.43
       chalk: 5.6.2
@@ -5128,7 +5128,7 @@ snapshots:
 
   get-caller-file@2.0.5: {}
 
-  get-east-asian-width@1.5.0: {}
+  get-east-asian-width@1.6.0: {}
 
   get-intrinsic@1.3.0:
     dependencies:
@@ -6441,7 +6441,7 @@ snapshots:
   string-width@7.2.0:
     dependencies:
       emoji-regex: 10.6.0
-      get-east-asian-width: 1.5.0
+      get-east-asian-width: 1.6.0
       strip-ansi: 7.2.0
 
   string_decoder@1.1.1:

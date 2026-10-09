@@ -102,8 +102,7 @@ class SettingsManager {
         openaiApiKey: legacyData.openai_api_key || '',
         fileNameFormat: legacyData.file_naming_pattern || this.defaultSettings.fileNameFormat,
         language: (legacyData.whisper_language || legacyData.primary_language || 'ja') as
-          | 'ja'
-          | 'en',
+          'ja' | 'en',
         gptModel: legacyData.openai_model || 'gpt-3.5-turbo',
         temperature: legacyData.openai_temperature || 0.7,
         autoSave: legacyData.auto_save_enabled !== undefined ? legacyData.auto_save_enabled : true,

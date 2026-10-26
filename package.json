@@ -42,7 +42,7 @@
     }
   },
   "devDependencies": {
-    "@electron/typescript-definitions": "^9.2.0",
+    "@electron/typescript-definitions": "^9.2.1",
     "@jest/globals": "^30.5.2",
     "@playwright/test": "^1.62.0",
     "@testing-library/jest-dom": "^7.0.1",
